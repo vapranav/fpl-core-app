@@ -37,14 +37,14 @@ FILES = {
     # cumulative snapshot history; last row duplicates (id=1, gw=2) - the
     # loader must keep the last occurrence (total_points 99)
     "data/2099-2000/playerstats.csv": (
-        "id,gw,total_points,event_points,now_cost,form,expected_goals,selected_by_percent\n"
-        "1,1,6,6,9.5,6.0,0.8,25.0\n"
-        "1,2,12,6,9.5,6.0,,26.0\n"
-        "2,1,2,2,6.0,2.0,0.1,10.0\n"
-        "2,2,5,3,6.0,3.5,0.2,11.0\n"
-        "3,1,4,4,4.5,4.0,0.0,5.0\n"
-        "3,2,4,0,4.5,2.0,0.0,5.0\n"
-        "1,2,99,6,9.5,6.0,,26.0\n"
+        "id,gw,total_points,event_points,now_cost,form,expected_goals,expected_assists,minutes,points_per_game,selected_by_percent\n"
+        "1,1,6,6,9.5,6.0,0.8,0.1,90,6.0,25.0\n"
+        "1,2,12,6,9.5,6.0,,0.2,990,5.5,26.0\n"
+        "2,1,2,2,6.0,2.0,0.1,0.05,90,2.0,10.0\n"
+        "2,2,5,3,6.0,3.5,0.2,0.1,990,2.5,11.0\n"
+        "3,1,4,4,4.5,4.0,0.0,0.02,90,4.0,5.0\n"
+        "3,2,4,0,4.5,2.0,0.0,0.03,990,2.0,5.0\n"
+        "1,2,99,6,9.5,6.0,,0.2,990,5.5,26.0\n"
     ),
     "data/2099-2000/gameweek_summaries.csv": (
         "id,name,deadline_time,finished,is_current,highest_score\n"
@@ -92,6 +92,25 @@ FILES = {
         "1,John,Striker,Striker,6,12,0,88\n"
         "2,Jane,Playmaker,Playmaker,3,5,0,90\n"
         "3,Bob,Wall,Wall,0,4,0,90\n"
+    ),
+    # full-season PL schedule lives under By Tournament (primary fixture
+    # source); the UCL row tests that non-prem fixtures are excluded
+    "data/2099-2000/By Tournament/Premier League/GW2/fixtures.csv": (
+        "gameweek,kickoff_time,home_team,home_team_elo,away_team,away_team_elo,finished,match_id\n"
+        "2,2099-08-08T15:00:00Z,10,1900.5,20,1750.25,True,99-00-prem-alpha-fc-vs-beta-united\n"
+        "3,2099-08-16T20:00:00Z,10,1900.5,,,False,99-00-champions-league-alpha-fc-vs-gamma-xi\n"
+    ),
+    "data/2099-2000/By Tournament/Premier League/GW3/fixtures.csv": (
+        "gameweek,kickoff_time,home_team,home_team_elo,away_team,away_team_elo,finished,match_id\n"
+        "3,2099-08-15T15:00:00Z,20,1750.25,10,1900.5,False,99-00-prem-beta-united-vs-alpha-fc\n"
+    ),
+    "data/2099-2000/By Tournament/Premier League/GW4/fixtures.csv": (
+        "gameweek,kickoff_time,home_team,home_team_elo,away_team,away_team_elo,finished,match_id\n"
+        "4,2099-08-22T15:00:00Z,10,1900.5,20,1750.25,False,99-00-prem-alpha-fc-vs-beta-united-gw4\n"
+    ),
+    "data/2099-2000/By Tournament/Premier League/GW5/fixtures.csv": (
+        "gameweek,kickoff_time,home_team,home_team_elo,away_team,away_team_elo,finished,match_id\n"
+        "5,2099-08-29T15:00:00Z,20,1750.25,10,1900.5,False,99-00-prem-beta-united-vs-alpha-fc-gw5\n"
     ),
     # ---- legacy layout --------------------------------------------------
     "data/2098-2099/teams/teams.csv": (

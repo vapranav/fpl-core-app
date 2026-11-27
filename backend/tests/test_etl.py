@@ -31,6 +31,12 @@ def test_refresh_loads_both_layouts(mock_source, clean_db):
     assert _count(Match, "2099-2000") == 2
     assert _count(Match, "2098-2099") == 1
 
+    # fixtures: only the latest-GW snapshot, only the current layout has them
+    from app.models import Fixture
+
+    assert _count(Fixture, "2099-2000") == 5
+    assert _count(Fixture, "2098-2099") == 0
+
 
 def test_duplicate_pk_keeps_last(mock_source, clean_db):
     etl.refresh(force=True)

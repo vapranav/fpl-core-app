@@ -146,6 +146,50 @@ export function getPlayerMatches(
   return get(`/api/players/${id}/matches${season ? `?season=${season}` : ""}`);
 }
 
+// ---- differentials ---------------------------------------------------------
+
+export interface NextFixture {
+  gw: number | null;
+  home: boolean;
+  opp_code: number | null;
+  opp_name: string | null;
+  opp_elo: number | null;
+}
+
+export interface Differential {
+  player_id: number;
+  web_name: string;
+  team_code: number;
+  team_name: string | null;
+  position: string;
+  photo_url: string | null;
+  ownership: number | null;
+  form: number | null;
+  points_per_game: number | null;
+  xgi_per_90: number;
+  fixture_ease: number;
+  score: number;
+  next_fixtures: NextFixture[];
+}
+
+export interface DifferentialsResponse {
+  season: string;
+  max_ownership: number;
+  league_avg_elo: number;
+  total: number;
+  differentials: Differential[];
+}
+
+export function getDifferentials(q: {
+  season?: string;
+  max_ownership?: string;
+  position?: string;
+}): Promise<DifferentialsResponse> {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) if (v) qs.set(k, v);
+  return get(`/api/differentials?${qs.toString()}`);
+}
+
 export const POSITIONS = ["Goalkeeper", "Defender", "Midfielder", "Forward"] as const;
 
 export const SORTABLE: { key: string; label: string }[] = [
