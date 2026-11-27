@@ -208,6 +208,52 @@ export function getDifferentials(q: {
   return get(`/api/differentials?${qs.toString()}`);
 }
 
+// ---- rotation risk -----------------------------------------------------------
+
+export interface RotationRisk {
+  player_id: number;
+  web_name: string;
+  team_code: number;
+  team_name: string | null;
+  position: string;
+  photo_url: string | null;
+  next_fixture: {
+    gw: number | null;
+    kickoff_time: string | null;
+    home: boolean;
+    opp_code: number | null;
+    opp_name: string | null;
+  };
+  midweek: {
+    match_id: string;
+    competition: string;
+    kickoff_time: string | null;
+    minutes: number;
+  };
+  history: {
+    sample: number;
+    avg_minutes_after: number | null;
+    baseline_minutes: number | null;
+    delta: number | null;
+  };
+  risk: number;
+  risk_label: "High" | "Medium" | "Low";
+}
+
+export function getRotationRisk(q: {
+  season?: string;
+  days?: string;
+}): Promise<{
+  season: string;
+  days: number;
+  total: number;
+  players: RotationRisk[];
+}> {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) if (v) qs.set(k, v);
+  return get(`/api/rotation-risk?${qs.toString()}`);
+}
+
 export const POSITIONS = [
   "Goalkeeper",
   "Defender",

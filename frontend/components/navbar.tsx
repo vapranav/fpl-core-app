@@ -8,7 +8,8 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/players", label: "Players" },
   { href: "/differentials", label: "Differentials" },
-  { href: "/compare", label: "Compare" },
+  { href: "/rotation", label: "Rotation" },
+  { href: "/matches", label: "Matches" },
 ];
 
 export function Navbar() {
