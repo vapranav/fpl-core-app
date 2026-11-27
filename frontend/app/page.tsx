@@ -176,7 +176,12 @@ export default async function PlayersPage({
                 <td className="px-3 py-1.5">
                   <div className="flex items-center gap-2">
                     <PlayerPhoto src={p.photo_url} alt={p.web_name} priority={i < 10} />
-                    <span className="font-medium">{p.web_name}</span>
+                    <Link
+                      href={`/players/${p.player_id}`}
+                      className="font-medium hover:text-accent hover:underline"
+                    >
+                      {p.web_name}
+                    </Link>
                   </div>
                 </td>
                 <td className="px-3 py-1.5">
