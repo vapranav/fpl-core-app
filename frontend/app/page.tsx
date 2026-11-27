@@ -167,7 +167,7 @@ export default async function PlayersPage({
             </tr>
           </thead>
           <tbody>
-            {data.players.map((p) => (
+            {data.players.map((p, i) => (
               <tr
                 key={p.player_id}
                 className="border-t border-border transition-colors hover:bg-background"
@@ -180,6 +180,8 @@ export default async function PlayersPage({
                         alt={p.web_name}
                         width={40}
                         height={50}
+                        sizes="40px"
+                        priority={i < 10}
                         className="rounded"
                       />
                     )}
@@ -193,6 +195,8 @@ export default async function PlayersPage({
                       alt={p.team_name}
                       width={18}
                       height={18}
+                      sizes="18px"
+                      priority={i < 10}
                     />
                     <span>{p.team_name}</span>
                   </div>
