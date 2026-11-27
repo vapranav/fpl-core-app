@@ -93,7 +93,7 @@ def test_player_gameweeks(client):
 
 def test_player_matches_joined(client):
     data = client.get("/api/players/1/matches").json()
-    assert len(data["matches"]) == 2
+    assert len(data["matches"]) == 3  # 2 league + 1 midweek UCL
     first = data["matches"][0]
     assert first["goals"] == 2
     assert first["match"]["match_id"] == "99-00-prem-alpha-fc-vs-beta-united"
@@ -102,11 +102,11 @@ def test_player_matches_joined(client):
 
 def test_matches_filters(client):
     data = client.get("/api/matches", params={"season": "2099-2000"}).json()
-    assert data["total"] == 2
+    assert data["total"] == 3
     assert client.get("/api/matches", params={"season": "2099-2000", "gw": 1}).json()["total"] == 1
     assert (
         client.get("/api/matches", params={"season": "2099-2000", "team_code": 10}).json()["total"]
-        == 2
+        == 3
     )
     # legacy integer match id round-trips as a string
     legacy = client.get("/api/matches", params={"season": "2098-2099"}).json()
@@ -184,6 +184,39 @@ def test_search_orders_by_points(client):
     # "er" matches Striker (99 pts) and Playmaker (5) — highest first
     data = client.get("/api/search/players", params={"q": "er"}).json()
     assert [r["web_name"] for r in data["results"]] == ["Striker", "Playmaker"]
+
+
+def test_rotation_risk_detects_midweek_match(client):
+    data = client.get("/api/rotation-risk", params={"season": "2099-2000"}).json()
+    names = [p["web_name"] for p in data["players"]]
+    # Alpha FC (Striker, Playmaker) played UCL midweek before the GW3 fixture;
+    # Wall's Beta United had no midweek match
+    assert set(names) == {"Striker", "Playmaker"}
+    striker = data["players"][0]
+    assert striker["web_name"] == "Striker"  # highest risk first
+    assert striker["midweek"]["competition"] == "UCL"
+    assert striker["midweek"]["minutes"] == 90
+    assert striker["risk"] == 1.0
+    assert striker["risk_label"] == "Medium"
+    assert striker["next_fixture"]["gw"] == 3
+    assert striker["next_fixture"]["opp_name"] == "Beta United"
+    assert striker["next_fixture"]["home"] is False
+
+
+def test_rotation_risk_history_delta_null_without_samples(client):
+    data = client.get("/api/rotation-risk", params={"season": "2099-2000"}).json()
+    striker = data["players"][0]
+    # no PL match in the fixture data follows a midweek game -> no history
+    assert striker["history"]["sample"] == 0
+    assert striker["history"]["delta"] is None
+    assert striker["history"]["baseline_minutes"] == 89.0  # (90 + 88) / 2
+
+
+def test_rotation_risk_window_excludes_old_matches(client):
+    # days=0 is invalid (ge=1); days=1 covers the UCL match (19h before GW3)
+    assert client.get("/api/rotation-risk", params={"days": 0}).status_code == 422
+    data = client.get("/api/rotation-risk", params={"season": "2099-2000", "days": 1}).json()
+    assert len(data["players"]) == 2
 
 
 def test_admin_open_when_token_unset(client):

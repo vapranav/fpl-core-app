@@ -64,15 +64,19 @@ FILES = {
         "home_expected_goals_xg,away_expected_goals_xg\n"
         "2,2099-08-08T15:00:00Z,20,1750.25,0,0,10,1900.5,True,"
         "99-00-prem-beta-united-vs-alpha-fc,/m/2,0.4,1.1\n"
+        "2,2099-08-14T20:00:00Z,10,1900.5,2,1,,,True,"
+        "99-00-champions-league-alpha-fc-vs-gamma-xi,/m/3,1.5,0.8\n"
     ),
     "data/2099-2000/By Gameweek/GW1/playermatchstats.csv": (
         "player_id,match_id,minutes_played,goals,xg\n"
         "1,99-00-prem-alpha-fc-vs-beta-united,90,2,1.7\n"
         "2,99-00-prem-alpha-fc-vs-beta-united,90,0,0.1\n"
     ),
+    # Striker played 90' in the midweek UCL game before the GW3 league fixture
     "data/2099-2000/By Gameweek/GW2/playermatchstats.csv": (
         "player_id,match_id,minutes_played,goals,xg\n"
         "1,99-00-prem-beta-united-vs-alpha-fc,88,0,0.3\n"
+        "1,99-00-champions-league-alpha-fc-vs-gamma-xi,90,1,0.9\n"
     ),
     "data/2099-2000/By Gameweek/GW1/player_gameweek_stats.csv": (
         "id,first_name,second_name,web_name,event_points,total_points,goals_scored,minutes\n"

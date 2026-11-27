@@ -272,6 +272,182 @@ def search_players(
 
 
 # ---------------------------------------------------------------------------
+# Rotation risk
+# ---------------------------------------------------------------------------
+
+_COMPETITIONS = {
+    "prem": "PL",
+    "champions-league": "UCL",
+    "europa-league": "UEL",
+    "conference-league": "UECL",
+    "fa-cup": "FA Cup",
+    "league-cup": "EFL Cup",
+    "efl-cup": "EFL Cup",
+    "community-shield": "Shield",
+    "uefa-super-cup": "Super Cup",
+    "pre-season": "Friendly",
+}
+
+
+def _competition_of(match_id: str) -> str:
+    slug = match_id.split("-", 2)[-1] if "-" in match_id else match_id
+    for key, label in _COMPETITIONS.items():
+        if slug.startswith(key):
+            return label
+    return "Cup"
+
+
+@api.get("/rotation-risk")
+def rotation_risk(
+    season: str | None = None,
+    days: int = Query(3, ge=1, le=7),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    """Players whose club played a non-league match within `days` before their
+    next PL fixture — with their historical minutes drop in that situation.
+
+    risk = midweek minutes / 90 + max(0, -minutes delta) / 45.
+    """
+    from datetime import timedelta
+
+    season = _season(db, season)
+    gw = _latest_gw(db, season)
+    window = timedelta(days=days)
+
+    # next PL fixture per team
+    next_by_team: dict[int, Fixture] = {}
+    for f in db.scalars(
+        select(Fixture)
+        .where(
+            Fixture.season == season,
+            Fixture.finished == False,  # noqa: E712
+            Fixture.match_id.like("%prem%"),
+        )
+        .order_by(Fixture.kickoff_time)
+    ).all():
+        for code in (f.home_team, f.away_team):
+            if code is not None:
+                next_by_team.setdefault(int(code), f)
+
+    # finished non-league matches per team (midweek candidates)
+    midweek_by_team: dict[int, list[Match]] = {}
+    for m in db.scalars(
+        select(Match).where(Match.season == season, Match.finished == True)  # noqa: E712
+    ).all():
+        if "prem" in m.match_id:
+            continue
+        for code in (m.home_team, m.away_team):
+            if code is not None:
+                midweek_by_team.setdefault(int(code), []).append(m)
+
+    team_names = dict(db.execute(select(Team.code, Team.name).where(Team.season == season)).all())
+
+    players = db.scalars(
+        select(Player)
+        .join(
+            PlayerStats,
+            (PlayerStats.season == Player.season)
+            & (PlayerStats.id == Player.player_id)
+            & (PlayerStats.gw == gw),
+        )
+        .where(Player.season == season, func.coalesce(PlayerStats.minutes, 0) >= 270)
+    ).all()
+
+    def in_window(earlier, later):
+        return (
+            earlier is not None and later is not None and timedelta(0) <= later - earlier <= window
+        )
+
+    rows = []
+    for p in players:
+        nxt = next_by_team.get(p.team_code)
+        if nxt is None or nxt.kickoff_time is None:
+            continue
+        mid = [
+            m
+            for m in midweek_by_team.get(p.team_code, [])
+            if in_window(m.kickoff_time, nxt.kickoff_time)
+        ]
+        if not mid:
+            continue
+        mid_match = max(mid, key=lambda m: m.kickoff_time)
+
+        pms_mid = db.get(PlayerMatchStats, (season, mid_match.match_id, p.player_id))
+        mid_minutes = (pms_mid.minutes_played or 0) if pms_mid else 0
+
+        # historical minutes delta: PL matches preceded by a midweek match
+        pl_rows = db.execute(
+            select(PlayerMatchStats, Match)
+            .join(
+                Match,
+                (Match.season == PlayerMatchStats.season)
+                & (Match.match_id == PlayerMatchStats.match_id),
+            )
+            .where(
+                PlayerMatchStats.season == season,
+                PlayerMatchStats.player_id == p.player_id,
+                Match.match_id.like("%prem%"),
+                Match.finished,
+            )
+        ).all()
+        minutes_all = [r.PlayerMatchStats.minutes_played or 0 for r in pl_rows]
+        minutes_after = [
+            r.PlayerMatchStats.minutes_played or 0
+            for r in pl_rows
+            if any(
+                in_window(m.kickoff_time, r.Match.kickoff_time)
+                for m in midweek_by_team.get(p.team_code, [])
+            )
+        ]
+        baseline = sum(minutes_all) / len(minutes_all) if minutes_all else None
+        avg_after = sum(minutes_after) / len(minutes_after) if minutes_after else None
+        delta = (
+            round(avg_after - baseline, 1)
+            if avg_after is not None and baseline is not None
+            else None
+        )
+
+        risk = round(mid_minutes / 90 + (max(0, -delta) / 45 if delta is not None else 0), 2)
+        home = int(nxt.home_team) == p.team_code if nxt.home_team is not None else False
+        opp_code = nxt.away_team if home else nxt.home_team
+        rows.append(
+            {
+                "player_id": p.player_id,
+                "web_name": p.web_name,
+                "team_code": p.team_code,
+                "team_name": team_names.get(p.team_code),
+                "position": p.position,
+                "photo_url": player_photo_url(p.player_code),
+                "next_fixture": {
+                    "gw": nxt.gameweek,
+                    "kickoff_time": nxt.kickoff_time,
+                    "home": home,
+                    "opp_code": int(opp_code) if opp_code is not None else None,
+                    "opp_name": team_names.get(int(opp_code)) if opp_code is not None else None,
+                },
+                "midweek": {
+                    "match_id": mid_match.match_id,
+                    "competition": _competition_of(mid_match.match_id),
+                    "kickoff_time": mid_match.kickoff_time,
+                    "minutes": mid_minutes,
+                },
+                "history": {
+                    "sample": len(minutes_after),
+                    "avg_minutes_after": round(avg_after, 1) if avg_after is not None else None,
+                    "baseline_minutes": round(baseline, 1) if baseline is not None else None,
+                    "delta": delta,
+                },
+                "risk": risk,
+                "risk_label": "High" if risk >= 1.2 else "Medium" if risk >= 0.6 else "Low",
+            }
+        )
+
+    rows.sort(key=lambda r: r["risk"], reverse=True)
+    return {"season": season, "days": days, "total": len(rows), "players": rows[:limit]}
+
+
+# ---------------------------------------------------------------------------
 # Differentials
 # ---------------------------------------------------------------------------
 
