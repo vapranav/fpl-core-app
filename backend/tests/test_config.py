@@ -1,4 +1,5 @@
 """Config and CDN helper tests."""
+
 from app.config import Settings
 from app.schemas import player_photo_url, team_badge_url
 

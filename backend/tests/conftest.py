@@ -8,6 +8,7 @@ The fixture repo is a miniature copy of the dataset covering both layouts:
 - 2098-2099: legacy layout ({players,teams,playerstats}/x.csv, matches/,
   playermatchstats/GW{n}/)
 """
+
 import os
 import tempfile
 
@@ -24,9 +25,7 @@ import pytest  # noqa: E402
 FILES = {
     # ---- current layout -------------------------------------------------
     "data/2099-2000/teams.csv": (
-        "code,id,name,short_name,elo\n"
-        "10,1,Alpha FC,ALF,1900.5\n"
-        "20,2,Beta United,BET,1750.25\n"
+        "code,id,name,short_name,elo\n10,1,Alpha FC,ALF,1900.5\n20,2,Beta United,BET,1750.25\n"
     ),
     "data/2099-2000/players.csv": (
         "player_code,player_id,first_name,second_name,web_name,team_code,position\n"
@@ -51,13 +50,7 @@ FILES = {
         "1,Gameweek 1,2099-08-01T10:00:00Z,True,False,120\n"
         "2,Gameweek 2,2099-08-08T10:00:00Z,False,True,95\n"
     ),
-    "data/2099-2000/team_history.csv": (
-        "player_id,gw,team_code\n"
-        "1,1,10\n"
-        "2,1,10\n"
-        "3,1,20\n"
-        "3,2,10\n"
-    ),
+    "data/2099-2000/team_history.csv": ("player_id,gw,team_code\n1,1,10\n2,1,10\n3,1,20\n3,2,10\n"),
     "data/2099-2000/By Gameweek/GW1/matches.csv": (
         "gameweek,kickoff_time,home_team,home_team_elo,home_score,away_score,"
         "away_team,away_team_elo,finished,match_id,match_url,"
@@ -113,17 +106,13 @@ FILES = {
         "5,2099-08-29T15:00:00Z,20,1750.25,10,1900.5,False,99-00-prem-beta-united-vs-alpha-fc-gw5\n"
     ),
     # ---- legacy layout --------------------------------------------------
-    "data/2098-2099/teams/teams.csv": (
-        "code,id,name,short_name,elo\n"
-        "30,3,Gamma Town,GAM,1600.0\n"
-    ),
+    "data/2098-2099/teams/teams.csv": ("code,id,name,short_name,elo\n30,3,Gamma Town,GAM,1600.0\n"),
     "data/2098-2099/players/players.csv": (
         "player_code,player_id,first_name,second_name,web_name,team_code,position\n"
         "1009,9,Old,Legend,Legend,30,Forward\n"
     ),
     "data/2098-2099/playerstats/playerstats.csv": (
-        "id,gw,total_points,event_points,now_cost\n"
-        "9,38,50,2,7.5\n"
+        "id,gw,total_points,event_points,now_cost\n9,38,50,2,7.5\n"
     ),
     # legacy master matches file uses integer match ids
     "data/2098-2099/matches/matches.csv": (
@@ -132,8 +121,7 @@ FILES = {
         "38,2099-05-20T15:00:00Z,30,1600.0,3,0,31,1500.0,True,12345,/m/9\n"
     ),
     "data/2098-2099/playermatchstats/GW1/playermatchstats.csv": (
-        "player_id,match_id,minutes_played,goals,xg\n"
-        "9,12345,90,3,2.4\n"
+        "player_id,match_id,minutes_played,goals,xg\n9,12345,90,3,2.4\n"
     ),
 }
 

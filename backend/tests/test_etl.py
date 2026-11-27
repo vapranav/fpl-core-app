@@ -1,10 +1,11 @@
 """ETL tests: layout discovery, coercion, dedupe, idempotency."""
+
 from unittest import mock
 
 from sqlalchemy import func, select
 
 from app import etl
-from app.db import Base, SessionLocal, engine
+from app.db import SessionLocal
 from app.models import Match, Player, PlayerMatchStats, PlayerStats, Team
 
 
@@ -125,7 +126,8 @@ def test_real_tarball_extracts(tmp_path):
 def test_refresh_uses_network_functions(mock_source, clean_db, monkeypatch):
     """refresh() fails loudly if the commit fetch raises."""
     monkeypatch.setattr(
-        etl, "_latest_commit_sha",
+        etl,
+        "_latest_commit_sha",
         mock.Mock(side_effect=RuntimeError("github down")),
     )
     import pytest

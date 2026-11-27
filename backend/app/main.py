@@ -1,4 +1,5 @@
 """FastAPI application entrypoint."""
+
 import logging
 import threading
 from contextlib import asynccontextmanager
@@ -10,7 +11,8 @@ from .config import settings
 from .db import Base, engine
 from .etl import db_is_empty, refresh
 from .routers import admin, api
-from .scheduler import start as start_scheduler, stop as stop_scheduler
+from .scheduler import start as start_scheduler
+from .scheduler import stop as stop_scheduler
 
 logging.basicConfig(
     level=logging.INFO,

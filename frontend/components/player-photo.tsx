@@ -6,11 +6,16 @@ import { useState } from "react";
 function Silhouette({ size }: { size: number }) {
   return (
     <span
-      className="flex items-center justify-center rounded bg-border text-muted"
+      className="bg-border text-muted flex items-center justify-center rounded"
       style={{ width: size, height: size * 1.25 }}
       aria-label="No photo available"
     >
-      <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" fill="currentColor">
+      <svg
+        width={size * 0.55}
+        height={size * 0.55}
+        viewBox="0 0 24 24"
+        fill="currentColor"
+      >
         <circle cx="12" cy="8" r="4" />
         <path d="M4 20c0-3.3 3.6-5.5 8-5.5s8 2.2 8 5.5v1H4z" />
       </svg>

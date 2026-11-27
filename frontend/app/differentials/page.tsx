@@ -24,12 +24,16 @@ function FixturePill({ f, avgElo }: { f: NextFixture; avgElo: number }) {
   return (
     <span
       className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs ${cls}`}
-      title={f.opp_elo ? `Opponent Elo ${Math.round(f.opp_elo)}` : "Opponent Elo unknown"}
+      title={
+        f.opp_elo
+          ? `Opponent Elo ${Math.round(f.opp_elo)}`
+          : "Opponent Elo unknown"
+      }
     >
       {f.opp_code !== null ? (
         <Image src={badgeUrl(f.opp_code)} alt="" width={14} height={14} />
       ) : (
-        <span className="inline-block h-3.5 w-3.5 rounded-sm bg-border" />
+        <span className="bg-border inline-block h-3.5 w-3.5 rounded-sm" />
       )}
       {f.opp_name ?? "?"} ({f.home ? "H" : "A"})
     </span>
@@ -54,9 +58,9 @@ export default async function DifferentialsPage({
         <h1 className="font-display text-3xl font-bold tracking-tight">
           Differentials
         </h1>
-        <p className="text-sm text-muted">
-          Season {data.season} · owned by ≤{data.max_ownership}% · league avg Elo{" "}
-          {data.league_avg_elo}
+        <p className="text-muted text-sm">
+          Season {data.season} · owned by ≤{data.max_ownership}% · league avg
+          Elo {data.league_avg_elo}
         </p>
       </header>
 
@@ -78,13 +82,13 @@ export default async function DifferentialsPage({
         </Select>
         <button
           type="submit"
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white dark:text-neutral-900"
+          className="bg-accent rounded-md px-4 py-2 text-sm font-medium text-white dark:text-neutral-900"
         >
           Apply
         </button>
       </form>
 
-      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+      <div className="border-border bg-surface overflow-x-auto rounded-lg border">
         <table className="w-full text-sm tabular-nums">
           <thead className="bg-background text-left">
             <tr>
@@ -108,7 +112,7 @@ export default async function DifferentialsPage({
             {data.differentials.map((d) => (
               <tr
                 key={d.player_id}
-                className="border-t border-border transition-colors hover:bg-background"
+                className="border-border hover:bg-background border-t transition-colors"
               >
                 <td className="px-3 py-1.5">
                   <div className="flex items-center gap-2">
@@ -120,7 +124,7 @@ export default async function DifferentialsPage({
                       >
                         {d.web_name}
                       </Link>
-                      <div className="flex items-center gap-1 text-xs text-muted">
+                      <div className="text-muted flex items-center gap-1 text-xs">
                         <Image
                           src={badgeUrl(d.team_code)}
                           alt=""
@@ -160,11 +164,11 @@ export default async function DifferentialsPage({
                       <FixturePill key={i} f={f} avgElo={data.league_avg_elo} />
                     ))}
                     {d.next_fixtures.length === 0 && (
-                      <span className="text-xs text-muted">–</span>
+                      <span className="text-muted text-xs">–</span>
                     )}
                   </div>
                 </td>
-                <td className="px-3 py-1.5 text-right font-semibold text-accent">
+                <td className="text-accent px-3 py-1.5 text-right font-semibold">
                   {fmt(d.score, 2)}
                 </td>
               </tr>
@@ -172,10 +176,10 @@ export default async function DifferentialsPage({
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-muted">
-        Score = form + 2 × (xG+xA)/90 + points per game + fixture ease (league avg
-        Elo − mean Elo of next 3 opponents, scaled). Green fixtures sit below
-        league-average Elo.
+      <p className="text-muted mt-2 text-xs">
+        Score = form + 2 × (xG+xA)/90 + points per game + fixture ease (league
+        avg Elo − mean Elo of next 3 opponents, scaled). Green fixtures sit
+        below league-average Elo.
       </p>
     </main>
   );

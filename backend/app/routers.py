@@ -1,4 +1,5 @@
 """API routers."""
+
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.orm import Session
@@ -7,8 +8,16 @@ from .config import settings
 from .db import get_db
 from .etl import refresh
 from .models import (
-    Fixture, Gameweek, IngestionRun, Match, Player, PlayerGameweekStats,
-    PlayerMatchStats, PlayerStats, PlayerTeamHistory, Team,
+    Fixture,
+    Gameweek,
+    IngestionRun,
+    Match,
+    Player,
+    PlayerGameweekStats,
+    PlayerMatchStats,
+    PlayerStats,
+    PlayerTeamHistory,
+    Team,
 )
 from .schemas import player_photo_url, team_badge_url
 
@@ -40,9 +49,7 @@ def _season(db: Session, season: str | None) -> str:
 
 def _latest_gw(db: Session, season: str) -> int:
     """Highest GW present in the cumulative playerstats snapshots."""
-    return db.scalar(
-        select(func.max(PlayerStats.gw)).where(PlayerStats.season == season)
-    ) or 0
+    return db.scalar(select(func.max(PlayerStats.gw)).where(PlayerStats.season == season)) or 0
 
 
 # ---------------------------------------------------------------------------
@@ -64,9 +71,7 @@ def seasons(db: Session = Depends(get_db)):
 @api.get("/teams")
 def teams(season: str | None = None, db: Session = Depends(get_db)):
     season = _season(db, season)
-    rows = db.scalars(
-        select(Team).where(Team.season == season).order_by(Team.name)
-    ).all()
+    rows = db.scalars(select(Team).where(Team.season == season).order_by(Team.name)).all()
     return {
         "season": season,
         "teams": [{**_row(t), "badge_url": team_badge_url(t.code)} for t in rows],
@@ -76,9 +81,7 @@ def teams(season: str | None = None, db: Session = Depends(get_db)):
 @api.get("/gameweeks")
 def gameweeks(season: str | None = None, db: Session = Depends(get_db)):
     season = _season(db, season)
-    rows = db.scalars(
-        select(Gameweek).where(Gameweek.season == season).order_by(Gameweek.id)
-    ).all()
+    rows = db.scalars(select(Gameweek).where(Gameweek.season == season).order_by(Gameweek.id)).all()
     return {"season": season, "gameweeks": [_row(g) for g in rows]}
 
 
@@ -87,9 +90,19 @@ def gameweeks(season: str | None = None, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 _SORTABLE = {
-    "total_points", "event_points", "form", "now_cost", "selected_by_percent",
-    "expected_goals", "expected_assists", "goals_scored", "assists",
-    "defensive_contribution", "points_per_game", "ict_index", "minutes",
+    "total_points",
+    "event_points",
+    "form",
+    "now_cost",
+    "selected_by_percent",
+    "expected_goals",
+    "expected_assists",
+    "goals_scored",
+    "assists",
+    "defensive_contribution",
+    "points_per_game",
+    "ict_index",
+    "minutes",
 }
 
 
@@ -109,9 +122,12 @@ def players(
     gw = _latest_gw(db, season)
     q = (
         select(Player, PlayerStats, Team.name.label("team_name"))
-        .join(PlayerStats, (PlayerStats.season == Player.season)
-              & (PlayerStats.id == Player.player_id)
-              & (PlayerStats.gw == gw))
+        .join(
+            PlayerStats,
+            (PlayerStats.season == Player.season)
+            & (PlayerStats.id == Player.player_id)
+            & (PlayerStats.gw == gw),
+        )
         .join(Team, (Team.season == Player.season) & (Team.code == Player.team_code))
         .where(Player.season == season)
     )
@@ -147,8 +163,7 @@ def players(
 
 
 @api.get("/players/{player_id}")
-def player_detail(player_id: int, season: str | None = None,
-                  db: Session = Depends(get_db)):
+def player_detail(player_id: int, season: str | None = None, db: Session = Depends(get_db)):
     season = _season(db, season)
     p = db.get(Player, (season, player_id))
     if p is None:
@@ -156,8 +171,7 @@ def player_detail(player_id: int, season: str | None = None,
     stats = db.get(PlayerStats, (season, player_id, _latest_gw(db, season)))
     history = db.scalars(
         select(PlayerTeamHistory)
-        .where(PlayerTeamHistory.season == season,
-               PlayerTeamHistory.player_id == player_id)
+        .where(PlayerTeamHistory.season == season, PlayerTeamHistory.player_id == player_id)
         .order_by(PlayerTeamHistory.gw)
     ).all()
     return {
@@ -169,29 +183,29 @@ def player_detail(player_id: int, season: str | None = None,
 
 
 @api.get("/players/{player_id}/gameweeks")
-def player_gameweeks(player_id: int, season: str | None = None,
-                     db: Session = Depends(get_db)):
+def player_gameweeks(player_id: int, season: str | None = None, db: Session = Depends(get_db)):
     season = _season(db, season)
     rows = db.scalars(
         select(PlayerGameweekStats)
-        .where(PlayerGameweekStats.season == season,
-               PlayerGameweekStats.id == player_id)
+        .where(PlayerGameweekStats.season == season, PlayerGameweekStats.id == player_id)
         .order_by(PlayerGameweekStats.gw)
     ).all()
-    return {"season": season, "player_id": player_id,
-            "gameweeks": [_row(r) for r in rows]}
+    return {"season": season, "player_id": player_id, "gameweeks": [_row(r) for r in rows]}
 
 
 @api.get("/players/{player_id}/matches")
-def player_matches(player_id: int, season: str | None = None,
-                   gw: int | None = None, db: Session = Depends(get_db)):
+def player_matches(
+    player_id: int, season: str | None = None, gw: int | None = None, db: Session = Depends(get_db)
+):
     season = _season(db, season)
     q = (
         select(PlayerMatchStats, Match)
-        .join(Match, (Match.season == PlayerMatchStats.season)
-              & (Match.match_id == PlayerMatchStats.match_id))
-        .where(PlayerMatchStats.season == season,
-               PlayerMatchStats.player_id == player_id)
+        .join(
+            Match,
+            (Match.season == PlayerMatchStats.season)
+            & (Match.match_id == PlayerMatchStats.match_id),
+        )
+        .where(PlayerMatchStats.season == season, PlayerMatchStats.player_id == player_id)
         .order_by(PlayerMatchStats.gw)
     )
     if gw is not None:
@@ -200,9 +214,7 @@ def player_matches(player_id: int, season: str | None = None,
     return {
         "season": season,
         "player_id": player_id,
-        "matches": [
-            {**_row(pms), "match": _row(m)} for pms, m in rows
-        ],
+        "matches": [{**_row(pms), "match": _row(m)} for pms, m in rows],
     }
 
 
@@ -241,19 +253,18 @@ def differentials(
             elo_by_team.setdefault(int(m.home_team), m.home_team_elo)
         if m.away_team is not None and m.away_team_elo is not None:
             elo_by_team.setdefault(int(m.away_team), m.away_team_elo)
-    avg_elo = (
-        sum(elo_by_team.values()) / len(elo_by_team) if elo_by_team else 1800.0
-    )
+    avg_elo = sum(elo_by_team.values()) / len(elo_by_team) if elo_by_team else 1800.0
 
     fixtures = db.scalars(
         select(Fixture)
-        .where(Fixture.season == season, Fixture.finished == False,  # noqa: E712
-               Fixture.match_id.like("%prem%"))
+        .where(
+            Fixture.season == season,
+            Fixture.finished == False,  # noqa: E712
+            Fixture.match_id.like("%prem%"),
+        )
         .order_by(Fixture.kickoff_time)
     ).all()
-    team_names = dict(
-        db.execute(select(Team.code, Team.name).where(Team.season == season)).all()
-    )
+    team_names = dict(db.execute(select(Team.code, Team.name).where(Team.season == season)).all())
     by_team: dict[int, list[Fixture]] = {}
     for f in fixtures:
         for code in (f.home_team, f.away_team):
@@ -262,13 +273,18 @@ def differentials(
 
     q = (
         select(Player, PlayerStats)
-        .join(PlayerStats, (PlayerStats.season == Player.season)
-              & (PlayerStats.id == Player.player_id)
-              & (PlayerStats.gw == gw))
-        .where(Player.season == season,
-               PlayerStats.selected_by_percent <= max_ownership,
-               # ~3 full matches: below this, per-90 stats are noise
-               func.coalesce(PlayerStats.minutes, 0) >= 270)
+        .join(
+            PlayerStats,
+            (PlayerStats.season == Player.season)
+            & (PlayerStats.id == Player.player_id)
+            & (PlayerStats.gw == gw),
+        )
+        .where(
+            Player.season == season,
+            PlayerStats.selected_by_percent <= max_ownership,
+            # ~3 full matches: below this, per-90 stats are noise
+            func.coalesce(PlayerStats.minutes, 0) >= 270,
+        )
     )
     if position:
         q = q.where(Player.position == position)
@@ -283,33 +299,41 @@ def differentials(
             opp_elo = (f.away_team_elo if home else f.home_team_elo) or (
                 elo_by_team.get(int(opp_code)) if opp_code is not None else None
             )
-            nxt.append({
-                "gw": f.gameweek,
-                "home": home,
-                "opp_code": int(opp_code) if opp_code is not None else None,
-                "opp_name": team_names.get(int(opp_code)) if opp_code is not None else None,
-                "opp_elo": opp_elo,
-            })
+            nxt.append(
+                {
+                    "gw": f.gameweek,
+                    "home": home,
+                    "opp_code": int(opp_code) if opp_code is not None else None,
+                    "opp_name": team_names.get(int(opp_code)) if opp_code is not None else None,
+                    "opp_elo": opp_elo,
+                }
+            )
         opp_elos = [n["opp_elo"] for n in nxt if n["opp_elo"] is not None]
         ease = (avg_elo - sum(opp_elos) / len(opp_elos)) / 100 if opp_elos else 0.0
         minutes = st.minutes or 0
-        xgi90 = ((st.expected_goals or 0) + (st.expected_assists or 0)) / minutes * 90 if minutes else 0.0
+        xgi90 = (
+            ((st.expected_goals or 0) + (st.expected_assists or 0)) / minutes * 90
+            if minutes
+            else 0.0
+        )
         score = (st.form or 0) + 2 * xgi90 + (st.points_per_game or 0) + ease
-        rows.append({
-            "player_id": p.player_id,
-            "web_name": p.web_name,
-            "team_code": p.team_code,
-            "team_name": team_names.get(p.team_code),
-            "position": p.position,
-            "photo_url": player_photo_url(p.player_code),
-            "ownership": st.selected_by_percent,
-            "form": st.form,
-            "points_per_game": st.points_per_game,
-            "xgi_per_90": round(xgi90, 2),
-            "fixture_ease": round(ease, 2),
-            "score": round(score, 2),
-            "next_fixtures": nxt,
-        })
+        rows.append(
+            {
+                "player_id": p.player_id,
+                "web_name": p.web_name,
+                "team_code": p.team_code,
+                "team_name": team_names.get(p.team_code),
+                "position": p.position,
+                "photo_url": player_photo_url(p.player_code),
+                "ownership": st.selected_by_percent,
+                "form": st.form,
+                "points_per_game": st.points_per_game,
+                "xgi_per_90": round(xgi90, 2),
+                "fixture_ease": round(ease, 2),
+                "score": round(score, 2),
+                "next_fixtures": nxt,
+            }
+        )
 
     rows.sort(key=lambda r: r["score"], reverse=True)
     return {
@@ -360,7 +384,5 @@ def force_refresh(background: BackgroundTasks):
 
 @admin.get("/ingestions")
 def ingestions(limit: int = Query(20, ge=1, le=200), db: Session = Depends(get_db)):
-    rows = db.scalars(
-        select(IngestionRun).order_by(IngestionRun.id.desc()).limit(limit)
-    ).all()
+    rows = db.scalars(select(IngestionRun).order_by(IngestionRun.id.desc()).limit(limit)).all()
     return {"ingestions": [_row(r) for r in rows]}

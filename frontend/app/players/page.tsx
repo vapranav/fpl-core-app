@@ -61,7 +61,9 @@ export default async function PlayersPage({
     getPlayers(query),
     getTeams(sp.season),
   ]);
-  const teams = [...teamsData.teams].sort((a, b) => a.name.localeCompare(b.name));
+  const teams = [...teamsData.teams].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
   const offset = Number(query.offset);
   const page = Math.floor(offset / PAGE_SIZE) + 1;
   const pages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
@@ -72,7 +74,7 @@ export default async function PlayersPage({
         <h1 className="font-display text-3xl font-bold tracking-tight">
           Players
         </h1>
-        <p className="text-sm text-muted">
+        <p className="text-muted text-sm">
           Season {data.season} · {data.total} players
         </p>
       </header>
@@ -105,25 +107,28 @@ export default async function PlayersPage({
         <input type="hidden" name="order" value={query.order} />
         <button
           type="submit"
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white dark:text-neutral-900"
+          className="bg-accent rounded-md px-4 py-2 text-sm font-medium text-white dark:text-neutral-900"
         >
           Filter
         </button>
-        <Link href="/" className="px-2 py-2 text-sm text-muted underline">
+        <Link href="/" className="text-muted px-2 py-2 text-sm underline">
           Reset
         </Link>
       </form>
 
-      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+      <div className="border-border bg-surface overflow-x-auto rounded-lg border">
         <table className="w-full text-sm tabular-nums">
           <thead className="bg-background text-left">
             <tr>
               <th className="px-3 py-2 font-medium">Player</th>
               <th className="px-3 py-2 font-medium">Team</th>
-              <th className="hidden px-3 py-2 font-medium md:table-cell">Pos</th>
+              <th className="hidden px-3 py-2 font-medium md:table-cell">
+                Pos
+              </th>
               {SORTABLE.map((c) => {
                 const active = query.sort === c.key;
-                const nextOrder = active && query.order === "desc" ? "asc" : "desc";
+                const nextOrder =
+                  active && query.order === "desc" ? "asc" : "desc";
                 return (
                   <th
                     key={c.key}
@@ -135,7 +140,11 @@ export default async function PlayersPage({
                         order: nextOrder,
                         offset: "0",
                       })}
-                      className={active ? "font-bold underline" : "text-muted hover:text-foreground hover:underline"}
+                      className={
+                        active
+                          ? "font-bold underline"
+                          : "text-muted hover:text-foreground hover:underline"
+                      }
                       title={`Sort by ${c.label}`}
                     >
                       {c.label}
@@ -150,11 +159,15 @@ export default async function PlayersPage({
             {data.players.map((p, i) => (
               <tr
                 key={p.player_id}
-                className="border-t border-border transition-colors hover:bg-background"
+                className="border-border hover:bg-background border-t transition-colors"
               >
                 <td className="px-3 py-1.5">
                   <div className="flex items-center gap-2">
-                    <PlayerPhoto src={p.photo_url} alt={p.web_name} priority={i < 10} />
+                    <PlayerPhoto
+                      src={p.photo_url}
+                      alt={p.web_name}
+                      priority={i < 10}
+                    />
                     <Link
                       href={`/players/${p.player_id}`}
                       className="font-medium hover:underline"
@@ -203,7 +216,7 @@ export default async function PlayersPage({
           {page > 1 && (
             <Link
               href={buildQuery(query, { offset: String(offset - PAGE_SIZE) })}
-              className="rounded-md border border-border bg-surface px-3 py-1.5"
+              className="border-border bg-surface rounded-md border px-3 py-1.5"
             >
               ← Prev
             </Link>
@@ -211,7 +224,7 @@ export default async function PlayersPage({
           {page < pages && (
             <Link
               href={buildQuery(query, { offset: String(offset + PAGE_SIZE) })}
-              className="rounded-md border border-border bg-surface px-3 py-1.5"
+              className="border-border bg-surface rounded-md border px-3 py-1.5"
             >
               Next →
             </Link>

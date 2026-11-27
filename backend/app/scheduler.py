@@ -1,4 +1,5 @@
 """APScheduler wiring: refresh the DB twice daily, after the repo's updates."""
+
 import logging
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -34,7 +35,8 @@ def start() -> BackgroundScheduler:
     _scheduler.start()
     log.info(
         "scheduler started: refresh at %s:%02d UTC",
-        settings.refresh_hour, settings.refresh_minute,
+        settings.refresh_hour,
+        settings.refresh_minute,
     )
     return _scheduler
 
