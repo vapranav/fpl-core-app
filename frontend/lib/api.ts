@@ -88,7 +88,9 @@ export interface Gameweek {
   highest_score: number | null;
 }
 
-export function getGameweeks(season?: string): Promise<{ gameweeks: Gameweek[] }> {
+export function getGameweeks(
+  season?: string,
+): Promise<{ gameweeks: Gameweek[] }> {
   return get(`/api/gameweeks${season ? `?season=${season}` : ""}`);
 }
 
@@ -150,7 +152,9 @@ export function getPlayerGameweeks(
   id: number,
   season?: string,
 ): Promise<{ gameweeks: GameweekStat[] }> {
-  return get(`/api/players/${id}/gameweeks${season ? `?season=${season}` : ""}`);
+  return get(
+    `/api/players/${id}/gameweeks${season ? `?season=${season}` : ""}`,
+  );
 }
 
 export function getPlayerMatches(
@@ -204,7 +208,12 @@ export function getDifferentials(q: {
   return get(`/api/differentials?${qs.toString()}`);
 }
 
-export const POSITIONS = ["Goalkeeper", "Defender", "Midfielder", "Forward"] as const;
+export const POSITIONS = [
+  "Goalkeeper",
+  "Defender",
+  "Midfielder",
+  "Forward",
+] as const;
 
 // hide: columns dropped on smaller screens (mobile shows the essentials)
 export const SORTABLE: { key: string; label: string; hide?: string }[] = [
@@ -217,7 +226,11 @@ export const SORTABLE: { key: string; label: string; hide?: string }[] = [
   { key: "goals_scored", label: "G", hide: "hidden md:table-cell" },
   { key: "assists", label: "A", hide: "hidden md:table-cell" },
   { key: "minutes", label: "Min", hide: "hidden md:table-cell" },
-  { key: "defensive_contribution", label: "DefCon", hide: "hidden lg:table-cell" },
+  {
+    key: "defensive_contribution",
+    label: "DefCon",
+    hide: "hidden lg:table-cell",
+  },
   { key: "ict_index", label: "ICT", hide: "hidden lg:table-cell" },
   { key: "points_per_game", label: "PPG", hide: "hidden lg:table-cell" },
 ];

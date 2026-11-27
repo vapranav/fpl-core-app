@@ -1,4 +1,5 @@
 """API tests against a database seeded from the fixture repo."""
+
 from unittest import mock
 
 import pytest
@@ -103,7 +104,10 @@ def test_matches_filters(client):
     data = client.get("/api/matches", params={"season": "2099-2000"}).json()
     assert data["total"] == 2
     assert client.get("/api/matches", params={"season": "2099-2000", "gw": 1}).json()["total"] == 1
-    assert client.get("/api/matches", params={"season": "2099-2000", "team_code": 10}).json()["total"] == 2
+    assert (
+        client.get("/api/matches", params={"season": "2099-2000", "team_code": 10}).json()["total"]
+        == 2
+    )
     # legacy integer match id round-trips as a string
     legacy = client.get("/api/matches", params={"season": "2098-2099"}).json()
     assert legacy["matches"][0]["match_id"] == "12345"
@@ -163,8 +167,7 @@ def test_admin_requires_token_when_configured(client, monkeypatch):
     monkeypatch.setattr(settings, "admin_token", "secret")
     assert client.get("/api/admin/ingestions").status_code == 401
     assert (
-        client.get("/api/admin/ingestions", headers={"X-Admin-Token": "secret"}).status_code
-        == 200
+        client.get("/api/admin/ingestions", headers={"X-Admin-Token": "secret"}).status_code == 200
     )
 
 

@@ -8,9 +8,17 @@ Design notes:
 - Wide stat tables (player stats, match stats) are built from column-name lists
   to keep this file readable and easy to extend when the dataset adds columns.
 """
+
 from sqlalchemy import (
-    Boolean, Column, DateTime, Float, ForeignKeyConstraint, Index, Integer,
-    String, Text,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+    Text,
 )
 
 from .db import Base
@@ -62,9 +70,7 @@ class Player(Base):
     position = Column(String(20), index=True)
 
     __table_args__ = (
-        ForeignKeyConstraint(
-            ["season", "team_code"], ["teams.season", "teams.code"]
-        ),
+        ForeignKeyConstraint(["season", "team_code"], ["teams.season", "teams.code"]),
     )
 
 
@@ -85,18 +91,52 @@ class PlayerTeamHistory(Base):
 # ---------------------------------------------------------------------------
 
 PLAYER_STATS_FLOATS = [
-    "now_cost", "selected_by_percent", "total_points", "event_points",
-    "points_per_game", "bonus", "bps", "form", "value_form", "value_season",
-    "dreamteam_count", "transfers_in", "transfers_in_event", "transfers_out",
-    "transfers_out_event", "ep_next", "ep_this", "expected_goals",
-    "expected_assists", "expected_goal_involvements", "expected_goals_conceded",
-    "expected_goals_per_90", "expected_assists_per_90",
-    "expected_goal_involvements_per_90", "expected_goals_conceded_per_90",
-    "influence", "creativity", "threat", "ict_index", "starts", "minutes",
-    "goals_scored", "assists", "clean_sheets", "goals_conceded", "own_goals",
-    "penalties_saved", "penalties_missed", "yellow_cards", "red_cards", "saves",
-    "defensive_contribution", "defensive_contribution_per_90",
-    "clearances_blocks_interceptions", "recoveries", "tackles",
+    "now_cost",
+    "selected_by_percent",
+    "total_points",
+    "event_points",
+    "points_per_game",
+    "bonus",
+    "bps",
+    "form",
+    "value_form",
+    "value_season",
+    "dreamteam_count",
+    "transfers_in",
+    "transfers_in_event",
+    "transfers_out",
+    "transfers_out_event",
+    "ep_next",
+    "ep_this",
+    "expected_goals",
+    "expected_assists",
+    "expected_goal_involvements",
+    "expected_goals_conceded",
+    "expected_goals_per_90",
+    "expected_assists_per_90",
+    "expected_goal_involvements_per_90",
+    "expected_goals_conceded_per_90",
+    "influence",
+    "creativity",
+    "threat",
+    "ict_index",
+    "starts",
+    "minutes",
+    "goals_scored",
+    "assists",
+    "clean_sheets",
+    "goals_conceded",
+    "own_goals",
+    "penalties_saved",
+    "penalties_missed",
+    "yellow_cards",
+    "red_cards",
+    "saves",
+    "defensive_contribution",
+    "defensive_contribution_per_90",
+    "clearances_blocks_interceptions",
+    "recoveries",
+    "tackles",
 ]
 PLAYER_STATS_STRINGS = ["status", "news"]
 
@@ -139,20 +179,57 @@ PlayerGameweekStats = _make_model(
 # ---------------------------------------------------------------------------
 
 PLAYER_MATCH_STATS_FLOATS = [
-    "minutes_played", "goals", "assists", "total_shots", "xg", "xa",
-    "shots_on_target", "successful_dribbles", "successful_dribbles_percent",
-    "big_chances_missed", "touches_opposition_box", "touches",
-    "accurate_passes", "accurate_passes_percent", "chances_created",
-    "final_third_passes", "accurate_crosses", "accurate_crosses_percent",
-    "accurate_long_balls", "accurate_long_balls_percent", "tackles",
-    "tackles_won", "tackles_won_percent", "interceptions", "recoveries",
-    "blocks", "clearances", "headed_clearances", "dribbled_past",
-    "duels_won", "duels_lost", "ground_duels_won", "ground_duels_won_percent",
-    "aerial_duels_won", "aerial_duels_won_percent", "was_fouled",
-    "fouls_committed", "saves", "goals_conceded", "xgot", "xgot_faced",
-    "goals_prevented", "sweeper_actions", "gk_accurate_passes",
-    "gk_accurate_long_balls", "dispossessed", "high_claim",
-    "saves_inside_box", "offsides", "start_min", "finish_min",
+    "minutes_played",
+    "goals",
+    "assists",
+    "total_shots",
+    "xg",
+    "xa",
+    "shots_on_target",
+    "successful_dribbles",
+    "successful_dribbles_percent",
+    "big_chances_missed",
+    "touches_opposition_box",
+    "touches",
+    "accurate_passes",
+    "accurate_passes_percent",
+    "chances_created",
+    "final_third_passes",
+    "accurate_crosses",
+    "accurate_crosses_percent",
+    "accurate_long_balls",
+    "accurate_long_balls_percent",
+    "tackles",
+    "tackles_won",
+    "tackles_won_percent",
+    "interceptions",
+    "recoveries",
+    "blocks",
+    "clearances",
+    "headed_clearances",
+    "dribbled_past",
+    "duels_won",
+    "duels_lost",
+    "ground_duels_won",
+    "ground_duels_won_percent",
+    "aerial_duels_won",
+    "aerial_duels_won_percent",
+    "was_fouled",
+    "fouls_committed",
+    "saves",
+    "goals_conceded",
+    "xgot",
+    "xgot_faced",
+    "goals_prevented",
+    "sweeper_actions",
+    "gk_accurate_passes",
+    "gk_accurate_long_balls",
+    "dispossessed",
+    "high_claim",
+    "saves_inside_box",
+    "offsides",
+    "start_min",
+    "finish_min",
 ]
 
 PlayerMatchStats = _make_model(
@@ -174,12 +251,29 @@ PlayerMatchStats = _make_model(
 # ---------------------------------------------------------------------------
 
 _MATCH_METRICS = [
-    "possession", "expected_goals_xg", "total_shots", "shots_on_target",
-    "big_chances", "big_chances_missed", "accurate_passes",
-    "accurate_passes_pct", "fouls_committed", "corners", "xg_open_play",
-    "xg_set_play", "non_penalty_xg", "xg_on_target_xgot", "shots_off_target",
-    "blocked_shots", "hit_woodwork", "shots_inside_box", "shots_outside_box",
-    "passes", "own_half", "opposition_half", "accurate_long_balls",
+    "possession",
+    "expected_goals_xg",
+    "total_shots",
+    "shots_on_target",
+    "big_chances",
+    "big_chances_missed",
+    "accurate_passes",
+    "accurate_passes_pct",
+    "fouls_committed",
+    "corners",
+    "xg_open_play",
+    "xg_set_play",
+    "non_penalty_xg",
+    "xg_on_target_xgot",
+    "shots_off_target",
+    "blocked_shots",
+    "hit_woodwork",
+    "shots_inside_box",
+    "shots_outside_box",
+    "passes",
+    "own_half",
+    "opposition_half",
+    "accurate_long_balls",
     "accurate_long_balls_pct",
 ]
 
@@ -199,11 +293,10 @@ Match = _make_model(
         "away_score": Column(Float),
         "finished": Column(Boolean),
         "match_url": Column(Text),
-        **_float_cols(
-            [f"{side}_{m}" for m in _MATCH_METRICS for side in ("home", "away")]
-        ),
+        **_float_cols([f"{side}_{m}" for m in _MATCH_METRICS for side in ("home", "away")]),
     },
 )
+
 
 class Fixture(Base):
     """Scheduled fixtures (latest snapshot). Same schema family as matches:

@@ -46,7 +46,9 @@ function slugClubs(matchId: string): { home: string; away: string } {
   const rest = matchId.split("-").slice(2).join("-");
   const [left = "", right = ""] = rest.split("-vs-");
   let home = left;
-  for (const key of Object.keys(COMPETITIONS).sort((a, b) => b.length - a.length)) {
+  for (const key of Object.keys(COMPETITIONS).sort(
+    (a, b) => b.length - a.length,
+  )) {
     if (home.startsWith(key + "-")) {
       home = home.slice(key.length + 1);
       break;
@@ -58,7 +60,7 @@ function slugClubs(matchId: string): { home: string; away: string } {
 function BadgePlaceholder() {
   return (
     <span
-      className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-border text-muted"
+      className="bg-border text-muted inline-flex h-4 w-4 items-center justify-center rounded-sm"
       aria-label="No badge available"
     >
       <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
@@ -68,13 +70,21 @@ function BadgePlaceholder() {
   );
 }
 
-function resultOf(m: MatchInfo, playerTeam: number): { label: string; cls: string } {
+function resultOf(
+  m: MatchInfo,
+  playerTeam: number,
+): { label: string; cls: string } {
   if (m.home_score === null || m.away_score === null)
     return { label: "–", cls: "text-muted" };
   const gf = m.home_team === playerTeam ? m.home_score : m.away_score;
   const ga = m.home_team === playerTeam ? m.away_score : m.home_score;
-  if (gf > ga) return { label: "W", cls: "bg-green-600/15 text-green-600 dark:text-green-400" };
-  if (gf < ga) return { label: "L", cls: "bg-red-600/15 text-red-600 dark:text-red-400" };
+  if (gf > ga)
+    return {
+      label: "W",
+      cls: "bg-green-600/15 text-green-600 dark:text-green-400",
+    };
+  if (gf < ga)
+    return { label: "L", cls: "bg-red-600/15 text-red-600 dark:text-red-400" };
   return { label: "D", cls: "bg-neutral-500/15 text-muted" };
 }
 
@@ -84,8 +94,8 @@ function fmt(v: number | null | undefined, digits = 1): string {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-3">
-      <div className="text-xs text-muted">{label}</div>
+    <div className="border-border bg-surface rounded-lg border p-3">
+      <div className="text-muted text-xs">{label}</div>
       <div className="mt-0.5 text-lg font-semibold tabular-nums">{value}</div>
     </div>
   );
@@ -133,7 +143,7 @@ export default async function PlayerPage({
   return (
     <main className="mx-auto max-w-6xl p-4 sm:p-6">
       <header className="mb-6">
-        <Link href="/players" className="text-sm text-muted hover:underline">
+        <Link href="/players" className="text-muted text-sm hover:underline">
           ← All players
         </Link>
       </header>
@@ -149,7 +159,7 @@ export default async function PlayerPage({
           <h1 className="font-display text-3xl font-bold tracking-tight">
             {player.first_name} {player.second_name}
           </h1>
-          <p className="mt-1 flex items-center gap-2 text-sm text-muted">
+          <p className="text-muted mt-1 flex items-center gap-2 text-sm">
             <Image
               src={badgeUrl(player.team_code)}
               alt=""
@@ -160,7 +170,7 @@ export default async function PlayerPage({
             {player.season}
           </p>
           {pastClubs.length > 0 && (
-            <p className="mt-1 text-xs text-muted">
+            <p className="text-muted mt-1 text-xs">
               Earlier this season: {pastClubs.map(teamName).join(", ")}
             </p>
           )}
@@ -172,7 +182,10 @@ export default async function PlayerPage({
           <StatCard label="Total points" value={fmt(s.total_points, 0)} />
           <StatCard label="Form" value={fmt(s.form)} />
           <StatCard label="Price" value={`£${fmt(s.now_cost)}m`} />
-          <StatCard label="Ownership" value={`${fmt(s.selected_by_percent)}%`} />
+          <StatCard
+            label="Ownership"
+            value={`${fmt(s.selected_by_percent)}%`}
+          />
           <StatCard
             label="xG / xA"
             value={`${fmt(s.expected_goals)} / ${fmt(s.expected_assists)}`}
@@ -182,13 +195,13 @@ export default async function PlayerPage({
       )}
 
       <section className="mb-8">
-        <h2 className="mb-3 font-display text-lg font-semibold">
+        <h2 className="font-display mb-3 text-lg font-semibold">
           Points per gameweek
         </h2>
         {gwRows.length === 0 ? (
-          <p className="text-sm text-muted">No gameweek data.</p>
+          <p className="text-muted text-sm">No gameweek data.</p>
         ) : (
-          <div className="flex gap-[3px] overflow-x-auto rounded-lg border border-border bg-surface p-4">
+          <div className="border-border bg-surface flex gap-[3px] overflow-x-auto rounded-lg border p-4">
             {gwRows.map((g) => {
               const pts = g.event_points ?? 0;
               const pct = (pts / maxGwPoints) * 100;
@@ -199,20 +212,22 @@ export default async function PlayerPage({
                   title={`GW${g.gw}: ${pts} pts, ${fmt(g.minutes, 0)} min`}
                 >
                   {/* fixed-height label row keeps every column aligned */}
-                  <span className="h-3.5 text-[10px] tabular-nums text-muted">
+                  <span className="text-muted h-3.5 text-[10px] tabular-nums">
                     {pts}
                   </span>
                   <div className="flex h-24 w-full items-end">
                     <div
                       className={
                         pts > 0
-                          ? "w-full rounded-sm bg-accent/80"
-                          : "h-0.5 w-full rounded-sm bg-border"
+                          ? "bg-accent/80 w-full rounded-sm"
+                          : "bg-border h-0.5 w-full rounded-sm"
                       }
-                      style={pts > 0 ? { height: `${Math.max(pct, 2)}%` } : undefined}
+                      style={
+                        pts > 0 ? { height: `${Math.max(pct, 2)}%` } : undefined
+                      }
                     />
                   </div>
-                  <span className="text-[10px] text-muted">{g.gw}</span>
+                  <span className="text-muted text-[10px]">{g.gw}</span>
                 </div>
               );
             })}
@@ -221,20 +236,29 @@ export default async function PlayerPage({
       </section>
 
       <section>
-        <h2 className="mb-3 font-display text-lg font-semibold">
+        <h2 className="font-display mb-3 text-lg font-semibold">
           Matches ({matches.matches.length})
         </h2>
-        <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+        <div className="border-border bg-surface overflow-x-auto rounded-lg border">
           <table className="w-full text-sm tabular-nums">
             <thead className="bg-background text-left">
               <tr>
-                {["GW", "Comp", "Match", "", "Min", "G", "A", "xG", "xA", "Def"].map(
-                  (h) => (
-                    <th key={h} className="px-3 py-2 font-medium">
-                      {h}
-                    </th>
-                  ),
-                )}
+                {[
+                  "GW",
+                  "Comp",
+                  "Match",
+                  "",
+                  "Min",
+                  "G",
+                  "A",
+                  "xG",
+                  "xA",
+                  "Def",
+                ].map((h) => (
+                  <th key={h} className="px-3 py-2 font-medium">
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -254,11 +278,11 @@ export default async function PlayerPage({
                 return (
                   <tr
                     key={row.match_id}
-                    className="border-t border-border hover:bg-background"
+                    className="border-border hover:bg-background border-t"
                   >
-                    <td className="px-3 py-1.5 text-muted">{row.gw ?? "–"}</td>
+                    <td className="text-muted px-3 py-1.5">{row.gw ?? "–"}</td>
                     <td className="px-3 py-1.5">
-                      <span className="rounded bg-background px-1.5 py-0.5 text-xs text-muted">
+                      <span className="bg-background text-muted rounded px-1.5 py-0.5 text-xs">
                         {competitionOf(row.match_id)}
                       </span>
                     </td>
@@ -276,7 +300,7 @@ export default async function PlayerPage({
                           <BadgePlaceholder />
                         )}
                         {oppName}
-                        <span className="text-xs text-muted">
+                        <span className="text-muted text-xs">
                           ({home ? "H" : "A"})
                         </span>
                       </span>
@@ -288,9 +312,15 @@ export default async function PlayerPage({
                         {res.label}
                       </span>
                     </td>
-                    <td className="px-3 py-1.5 text-right">{fmt(row.minutes_played, 0)}</td>
-                    <td className="px-3 py-1.5 text-right font-semibold">{fmt(row.goals, 0)}</td>
-                    <td className="px-3 py-1.5 text-right">{fmt(row.assists, 0)}</td>
+                    <td className="px-3 py-1.5 text-right">
+                      {fmt(row.minutes_played, 0)}
+                    </td>
+                    <td className="px-3 py-1.5 text-right font-semibold">
+                      {fmt(row.goals, 0)}
+                    </td>
+                    <td className="px-3 py-1.5 text-right">
+                      {fmt(row.assists, 0)}
+                    </td>
                     <td className="px-3 py-1.5 text-right">{fmt(row.xg, 2)}</td>
                     <td className="px-3 py-1.5 text-right">{fmt(row.xa, 2)}</td>
                     <td className="px-3 py-1.5 text-right">{def}</td>
@@ -300,7 +330,7 @@ export default async function PlayerPage({
             </tbody>
           </table>
         </div>
-        <p className="mt-2 text-xs text-muted">
+        <p className="text-muted mt-2 text-xs">
           Def = clearances + blocks + interceptions + tackles won
         </p>
       </section>

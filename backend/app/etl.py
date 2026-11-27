@@ -17,14 +17,14 @@ Dataset layout handled:
 Per-GW files (matches, playermatchstats, player_gameweek_stats) are GW-scoped,
 so all GW dirs are loaded; legacy seasons keep a season-level matches master.
 """
+
 from __future__ import annotations
 
-import io
 import logging
 import re
 import tarfile
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -32,9 +32,9 @@ import requests
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from .config import settings
-from .db import SessionLocal, engine, Base
 from . import models
+from .config import settings
+from .db import Base, SessionLocal, engine
 
 log = logging.getLogger("fpl.etl")
 
@@ -63,7 +63,7 @@ BOOL_COLS = {
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _latest_commit_sha() -> str:
@@ -114,14 +114,22 @@ def _coerce(df: pd.DataFrame, model) -> pd.DataFrame:
     for col in BOOL_COLS.get(table, []):
         if col in df:
             df[col] = df[col].map(
-                {True: True, False: False, "True": True, "False": False, 1: True, 0: False}
+                {
+                    True: True,
+                    False: False,
+                    "True": True,
+                    "False": False,
+                    "true": True,
+                    "false": False,
+                }
             )
     # astype(object) first: float64 columns would cast the None back to NaN
     return df.astype(object).where(pd.notnull(df), None)
 
 
-def _replace_season(db: Session, model, season: str, df: pd.DataFrame,
-                    extra_cols: dict | None = None) -> int:
+def _replace_season(
+    db: Session, model, season: str, df: pd.DataFrame, extra_cols: dict | None = None
+) -> int:
     """Bulk-insert df for a season (season rows must be deleted already)."""
     if df.empty:
         return 0
@@ -138,9 +146,15 @@ def _replace_season(db: Session, model, season: str, df: pd.DataFrame,
 
 # children before parents so FK constraints survive the rebuild
 _DELETE_ORDER = [
-    models.PlayerStats, models.PlayerGameweekStats, models.PlayerMatchStats,
-    models.PlayerTeamHistory, models.Player, models.Team, models.Match,
-    models.Fixture, models.Gameweek,
+    models.PlayerStats,
+    models.PlayerGameweekStats,
+    models.PlayerMatchStats,
+    models.PlayerTeamHistory,
+    models.Player,
+    models.Team,
+    models.Match,
+    models.Fixture,
+    models.Gameweek,
 ]
 
 
@@ -256,8 +270,9 @@ def refresh(force: bool = False) -> dict:
         if not force:
             last = (
                 db.query(models.IngestionRun)
-                .filter(models.IngestionRun.status == "success",
-                        models.IngestionRun.commit_sha == sha)
+                .filter(
+                    models.IngestionRun.status == "success", models.IngestionRun.commit_sha == sha
+                )
                 .first()
             )
             if last:

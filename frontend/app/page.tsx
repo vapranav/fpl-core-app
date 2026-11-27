@@ -38,7 +38,9 @@ export default async function HomePage() {
   const gw = gameweeks.gameweeks.find((g) => !g.finished);
   const now = new Date();
   // API stores naive UTC datetimes; without the Z, JS would parse as local
-  const deadlineAt = gw?.deadline_time ? new Date(`${gw.deadline_time}Z`) : null;
+  const deadlineAt = gw?.deadline_time
+    ? new Date(`${gw.deadline_time}Z`)
+    : null;
   const inProgress = deadlineAt !== null && now >= deadlineAt;
   const deadline = deadlineAt?.toLocaleString("en-GB", {
     weekday: "short",
@@ -50,29 +52,35 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto max-w-6xl p-4 sm:p-6">
-      <section className="mb-10 mt-8">
+      <section className="mt-8 mb-10">
         <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">
           FPL Core
         </h1>
-        <p className="mt-3 max-w-xl text-muted">
+        <p className="text-muted mt-3 max-w-xl">
           Fantasy Premier League analytics: official FPL data fused with
           Opta-like match stats and team Elo ratings, refreshed twice daily.
         </p>
         {gw && (
-          <p className="mt-3 inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm">
+          <p className="border-border bg-surface mt-3 inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border px-3 py-1.5 text-sm">
             <span className="inline-flex items-center gap-2 whitespace-nowrap">
               <span
                 className={`inline-block h-2 w-2 rounded-full ${
-                  inProgress ? "bg-green-600 dark:bg-green-400" : "bg-orange-700 dark:bg-orange-500"
+                  inProgress
+                    ? "bg-green-600 dark:bg-green-400"
+                    : "bg-orange-700 dark:bg-orange-500"
                 }`}
-                title={inProgress ? "Gameweek in progress" : "Deadline not reached yet"}
+                title={
+                  inProgress
+                    ? "Gameweek in progress"
+                    : "Deadline not reached yet"
+                }
               />
               <span className="font-medium">{gw.name}</span>
             </span>
             {deadline && (
               <span className="text-muted">deadline {deadline}</span>
             )}
-            <span className="text-xs text-muted">
+            <span className="text-muted text-xs">
               {inProgress ? "in progress" : "upcoming"}
             </span>
           </p>
@@ -84,12 +92,12 @@ export default async function HomePage() {
           <Link
             key={f.href}
             href={f.href}
-            className="group rounded-lg border border-border bg-surface p-5 transition-colors hover:border-accent"
+            className="group border-border bg-surface hover:border-accent rounded-lg border p-5 transition-colors"
           >
-            <h2 className="font-display text-lg font-semibold group-hover:text-accent">
+            <h2 className="font-display group-hover:text-accent text-lg font-semibold">
               {f.title}
             </h2>
-            <p className="mt-1.5 text-sm text-muted">{f.desc}</p>
+            <p className="text-muted mt-1.5 text-sm">{f.desc}</p>
           </Link>
         ))}
       </section>
@@ -100,23 +108,23 @@ export default async function HomePage() {
             <h2 className="font-display text-lg font-semibold">In form</h2>
             <Link
               href="/players?sort=form"
-              className="text-sm text-muted hover:underline"
+              className="text-muted text-sm hover:underline"
             >
               All players →
             </Link>
           </div>
-          <div className="overflow-hidden rounded-lg border border-border bg-surface">
+          <div className="border-border bg-surface overflow-hidden rounded-lg border">
             {formPlayers.players.map((p, i) => (
               <Link
                 key={p.player_id}
                 href={`/players/${p.player_id}`}
-                className={`flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-background ${
-                  i > 0 ? "border-t border-border" : ""
+                className={`hover:bg-background flex items-center gap-3 px-4 py-2.5 transition-colors ${
+                  i > 0 ? "border-border border-t" : ""
                 }`}
               >
                 <PlayerPhoto src={p.photo_url} alt={p.web_name} size={32} />
                 <span className="font-medium">{p.web_name}</span>
-                <span className="flex items-center gap-1 text-xs text-muted">
+                <span className="text-muted flex items-center gap-1 text-xs">
                   <Image
                     src={badgeUrl(p.team_code)}
                     alt=""
@@ -125,8 +133,11 @@ export default async function HomePage() {
                   />
                   {p.team_name}
                 </span>
-                <span className="ml-auto text-sm tabular-nums text-muted">
-                  form <span className="font-semibold text-foreground">{p.stats.form?.toFixed(1)}</span>
+                <span className="text-muted ml-auto text-sm tabular-nums">
+                  form{" "}
+                  <span className="text-foreground font-semibold">
+                    {p.stats.form?.toFixed(1)}
+                  </span>
                 </span>
               </Link>
             ))}
@@ -140,26 +151,26 @@ export default async function HomePage() {
             </h2>
             <Link
               href="/differentials"
-              className="text-sm text-muted hover:underline"
+              className="text-muted text-sm hover:underline"
             >
               All differentials →
             </Link>
           </div>
-          <div className="overflow-hidden rounded-lg border border-border bg-surface">
+          <div className="border-border bg-surface overflow-hidden rounded-lg border">
             {differentials.differentials.slice(0, 5).map((d, i) => (
               <Link
                 key={d.player_id}
                 href={`/players/${d.player_id}`}
-                className={`flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-background ${
-                  i > 0 ? "border-t border-border" : ""
+                className={`hover:bg-background flex items-center gap-3 px-4 py-2.5 transition-colors ${
+                  i > 0 ? "border-border border-t" : ""
                 }`}
               >
                 <PlayerPhoto src={d.photo_url} alt={d.web_name} size={32} />
                 <span className="font-medium">{d.web_name}</span>
-                <span className="text-xs text-muted">{d.team_name}</span>
-                <span className="ml-auto text-sm tabular-nums text-muted">
+                <span className="text-muted text-xs">{d.team_name}</span>
+                <span className="text-muted ml-auto text-sm tabular-nums">
                   {d.ownership?.toFixed(1)}% own · score{" "}
-                  <span className="font-semibold text-accent">
+                  <span className="text-accent font-semibold">
                     {d.score.toFixed(1)}
                   </span>
                 </span>

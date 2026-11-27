@@ -17,11 +17,11 @@ export function Navbar() {
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
-    <nav className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur">
+    <nav className="border-border bg-background/80 sticky top-0 z-10 border-b backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:gap-6 sm:px-6">
         <Link
           href="/"
-          className="shrink-0 font-display text-base font-bold tracking-tight sm:text-lg"
+          className="font-display shrink-0 text-base font-bold tracking-tight sm:text-lg"
         >
           FPL Core
         </Link>
@@ -30,9 +30,9 @@ export function Navbar() {
             <Link
               key={l.href}
               href={l.href}
-              className={`whitespace-nowrap rounded-md px-2 py-1.5 text-xs transition-colors sm:px-3 sm:text-sm ${
+              className={`rounded-md px-2 py-1.5 text-xs whitespace-nowrap transition-colors sm:px-3 sm:text-sm ${
                 isActive(l.href)
-                  ? "bg-accent/10 font-semibold text-accent"
+                  ? "bg-accent/10 text-accent font-semibold"
                   : "text-muted hover:bg-surface hover:text-foreground"
               }`}
             >
