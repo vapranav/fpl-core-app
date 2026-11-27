@@ -78,6 +78,20 @@ export function getTeams(season?: string): Promise<{ teams: Team[] }> {
   return get(`/api/teams${season ? `?season=${season}` : ""}`);
 }
 
+export interface Gameweek {
+  id: number;
+  name: string;
+  deadline_time: string | null;
+  is_current: boolean;
+  is_next: boolean;
+  finished: boolean;
+  highest_score: number | null;
+}
+
+export function getGameweeks(season?: string): Promise<{ gameweeks: Gameweek[] }> {
+  return get(`/api/gameweeks${season ? `?season=${season}` : ""}`);
+}
+
 // ---- player detail --------------------------------------------------------
 
 export interface PlayerDetail extends Omit<Player, "stats" | "team_name"> {
@@ -192,17 +206,18 @@ export function getDifferentials(q: {
 
 export const POSITIONS = ["Goalkeeper", "Defender", "Midfielder", "Forward"] as const;
 
-export const SORTABLE: { key: string; label: string }[] = [
+// hide: columns dropped on smaller screens (mobile shows the essentials)
+export const SORTABLE: { key: string; label: string; hide?: string }[] = [
   { key: "total_points", label: "Pts" },
   { key: "form", label: "Form" },
   { key: "now_cost", label: "Price" },
   { key: "selected_by_percent", label: "Own%" },
   { key: "expected_goals", label: "xG" },
-  { key: "expected_assists", label: "xA" },
-  { key: "goals_scored", label: "G" },
-  { key: "assists", label: "A" },
-  { key: "minutes", label: "Min" },
-  { key: "defensive_contribution", label: "DefCon" },
-  { key: "ict_index", label: "ICT" },
-  { key: "points_per_game", label: "PPG" },
+  { key: "expected_assists", label: "xA", hide: "hidden md:table-cell" },
+  { key: "goals_scored", label: "G", hide: "hidden md:table-cell" },
+  { key: "assists", label: "A", hide: "hidden md:table-cell" },
+  { key: "minutes", label: "Min", hide: "hidden md:table-cell" },
+  { key: "defensive_contribution", label: "DefCon", hide: "hidden lg:table-cell" },
+  { key: "ict_index", label: "ICT", hide: "hidden lg:table-cell" },
+  { key: "points_per_game", label: "PPG", hide: "hidden lg:table-cell" },
 ];
