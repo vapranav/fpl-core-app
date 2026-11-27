@@ -193,20 +193,25 @@ export default async function PlayerPage({
           <div className="flex gap-[3px] overflow-x-auto rounded-lg border border-border bg-surface p-4">
             {gwRows.map((g) => {
               const pts = g.event_points ?? 0;
-              const pct = Math.max(3, (pts / maxGwPoints) * 100);
+              const pct = (pts / maxGwPoints) * 100;
               return (
                 <div
                   key={g.gw}
                   className="flex min-w-5 flex-1 flex-col items-center gap-1"
                   title={`GW${g.gw}: ${pts} pts, ${fmt(g.minutes, 0)} min`}
                 >
-                  <span className="text-[10px] tabular-nums text-muted">
-                    {pts > 0 ? pts : ""}
+                  {/* fixed-height label row keeps every column aligned */}
+                  <span className="h-3.5 text-[10px] tabular-nums text-muted">
+                    {pts}
                   </span>
                   <div className="flex h-24 w-full items-end">
                     <div
-                      className="w-full rounded-sm bg-accent/80"
-                      style={{ height: `${pct}%` }}
+                      className={
+                        pts > 0
+                          ? "w-full rounded-sm bg-accent/80"
+                          : "h-0.5 w-full rounded-sm bg-border"
+                      }
+                      style={pts > 0 ? { height: `${Math.max(pct, 2)}%` } : undefined}
                     />
                   </div>
                   <span className="text-[10px] text-muted">{g.gw}</span>
@@ -273,6 +278,9 @@ export default async function PlayerPage({
                           <BadgePlaceholder />
                         )}
                         {oppName}
+                        <span className="text-xs text-muted">
+                          ({home ? "H" : "A"})
+                        </span>
                       </span>
                     </td>
                     <td className="px-3 py-1.5">
