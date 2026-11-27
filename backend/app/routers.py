@@ -578,6 +578,122 @@ def differentials(
 
 
 # ---------------------------------------------------------------------------
+# Defensive contributions (CBIT)
+# ---------------------------------------------------------------------------
+
+
+@api.get("/defcon")
+def defcon(
+    season: str | None = None,
+    position: str | None = Query(None, pattern="^(Goalkeeper|Defender|Midfielder|Forward)$"),
+    min_minutes: int = Query(270, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    """Defensive-contribution scout, aggregated over PL matches.
+
+    CBIT = clearances + blocks + interceptions + tackles_won per match (FPL's
+    defensive contribution metric; tackles_won counts won tackles only, while
+    raw tackles include attempts). threshold_rate = share of played matches
+    with CBIT >= 10 (FPL awards the bonus at 10+; the 12+ bar for forwards is
+    not modeled). Same 270-minute floor as differentials.
+    """
+    season = _season(db, season)
+    team_names = dict(db.execute(select(Team.code, Team.name).where(Team.season == season)).all())
+
+    per_player: dict[int, dict] = {}
+    for pms, m in db.execute(
+        select(PlayerMatchStats, Match)
+        .join(
+            Match,
+            (Match.season == PlayerMatchStats.season)
+            & (Match.match_id == PlayerMatchStats.match_id),
+        )
+        .where(
+            PlayerMatchStats.season == season,
+            PlayerMatchStats.match_id.like("%prem%"),
+        )
+    ).all():
+        a = per_player.setdefault(
+            pms.player_id,
+            {
+                "cbit": 0.0,
+                "minutes": 0.0,
+                "played": 0,
+                "hits": 0,
+                "clearances": 0.0,
+                "blocks": 0.0,
+                "interceptions": 0.0,
+                "tackles_won": 0.0,
+                "matches": [],
+            },
+        )
+        clearances = pms.clearances or 0
+        blocks = pms.blocks or 0
+        interceptions = pms.interceptions or 0
+        tackles_won = pms.tackles_won or 0
+        cbit = clearances + blocks + interceptions + tackles_won
+        a["cbit"] += cbit
+        a["minutes"] += pms.minutes_played or 0
+        a["clearances"] += clearances
+        a["blocks"] += blocks
+        a["interceptions"] += interceptions
+        a["tackles_won"] += tackles_won
+        if (pms.minutes_played or 0) > 0:
+            a["played"] += 1
+            a["hits"] += 1 if cbit >= 10 else 0
+            a["matches"].append(m)
+
+    q = select(Player).where(Player.season == season)
+    if position:
+        q = q.where(Player.position == position)
+
+    def per90(value: float, minutes: float) -> float:
+        return round(value / minutes * 90, 2)
+
+    rows = []
+    for p in db.scalars(q).all():
+        a = per_player.get(p.player_id)
+        if a is None or a["played"] == 0 or a["minutes"] < min_minutes:
+            continue
+        minutes = a["minutes"]
+        opp_elos = []
+        for m in a["matches"]:
+            if m.home_team is not None and int(m.home_team) == p.team_code:
+                elo = m.away_team_elo
+            elif m.away_team is not None and int(m.away_team) == p.team_code:
+                elo = m.home_team_elo
+            else:
+                elo = None
+            if elo is not None:
+                opp_elos.append(elo)
+        rows.append(
+            {
+                "player_id": p.player_id,
+                "web_name": p.web_name,
+                "team_code": p.team_code,
+                "team_name": team_names.get(p.team_code),
+                "position": p.position,
+                "photo_url": player_photo_url(p.player_code),
+                "cbit_total": int(a["cbit"]),
+                "matches_played": a["played"],
+                "minutes_total": int(minutes),
+                "cbit_per_90": per90(a["cbit"], minutes),
+                "cbit_per_match": round(a["cbit"] / a["played"], 2),
+                "threshold_rate": round(a["hits"] / a["played"], 2),
+                "clearances_per_90": per90(a["clearances"], minutes),
+                "blocks_per_90": per90(a["blocks"], minutes),
+                "interceptions_per_90": per90(a["interceptions"], minutes),
+                "tackles_won_per_90": per90(a["tackles_won"], minutes),
+                "avg_opp_elo": round(sum(opp_elos) / len(opp_elos), 1) if opp_elos else None,
+            }
+        )
+
+    rows.sort(key=lambda r: r["cbit_per_90"], reverse=True)
+    return {"season": season, "total": len(rows), "players": rows[:limit]}
+
+
+# ---------------------------------------------------------------------------
 # Matches
 # ---------------------------------------------------------------------------
 

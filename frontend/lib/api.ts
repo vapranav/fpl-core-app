@@ -334,6 +334,44 @@ export function getRotationRisk(q: {
   return get(`/api/rotation-risk?${qs.toString()}`);
 }
 
+// ---- defensive contributions (CBIT) -------------------------------------------
+
+export interface DefconEntry {
+  player_id: number;
+  web_name: string;
+  team_code: number;
+  team_name: string | null;
+  position: string;
+  photo_url: string | null;
+  cbit_total: number;
+  matches_played: number;
+  minutes_total: number;
+  cbit_per_90: number;
+  cbit_per_match: number;
+  threshold_rate: number;
+  clearances_per_90: number;
+  blocks_per_90: number;
+  interceptions_per_90: number;
+  tackles_won_per_90: number;
+  avg_opp_elo: number | null;
+}
+
+export interface DefconResponse {
+  season: string;
+  total: number;
+  players: DefconEntry[];
+}
+
+export function getDefcon(q: {
+  season?: string;
+  position?: string;
+  min_minutes?: string;
+}): Promise<DefconResponse> {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) if (v) qs.set(k, v);
+  return get(`/api/defcon?${qs.toString()}`);
+}
+
 export const POSITIONS = [
   "Goalkeeper",
   "Defender",

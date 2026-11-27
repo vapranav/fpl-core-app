@@ -64,22 +64,36 @@ FILES = {
         "home_expected_goals_xg,away_expected_goals_xg\n"
         "2,2099-08-08T15:00:00Z,20,1750.25,0,0,10,1900.5,True,"
         "99-00-prem-beta-united-vs-alpha-fc,/m/2,0.4,1.1\n"
+        # r2 rematch sits before the UCL game (08-14) so rotation-risk history
+        # still sees zero post-midweek league samples
+        "2,2099-08-12T15:00:00Z,10,1900.5,1,1,20,1750.25,True,"
+        "99-00-prem-alpha-fc-vs-beta-united-r2,/m/5,1.2,0.6\n"
         "2,2099-08-14T20:00:00Z,10,1900.5,2,1,,,True,"
         "99-00-champions-league-alpha-fc-vs-gamma-xi,/m/3,1.5,0.8\n"
         # dedicated unfinished row: exercises the finished= filter on /api/matches
         "3,2099-08-22T15:00:00Z,10,1900.5,,,,,False,"
         "99-00-prem-alpha-fc-vs-beta-united-gw3up,/m/4,,\n"
     ),
+    # distinct CBIT profiles: Wall high (DefCon monster), Playmaker mid, Striker low
     "data/2099-2000/By Gameweek/GW1/playermatchstats.csv": (
-        "player_id,match_id,minutes_played,goals,xg\n"
-        "1,99-00-prem-alpha-fc-vs-beta-united,90,2,1.7\n"
-        "2,99-00-prem-alpha-fc-vs-beta-united,90,0,0.1\n"
+        "player_id,match_id,minutes_played,goals,xg,"
+        "clearances,blocks,interceptions,tackles_won,tackles\n"
+        "1,99-00-prem-alpha-fc-vs-beta-united,90,2,1.7,1,0,0,1,2\n"
+        "2,99-00-prem-alpha-fc-vs-beta-united,90,0,0.1,3,1,2,1,3\n"
+        "3,99-00-prem-alpha-fc-vs-beta-united,90,0,0.0,8,2,3,2,4\n"
     ),
-    # Striker played 90' in the midweek UCL game before the GW3 league fixture
+    # Striker played 90' in the midweek UCL game before the GW3 league fixture;
+    # his 89' in the r2 rematch keeps his rotation baseline at exactly 89.0
     "data/2099-2000/By Gameweek/GW2/playermatchstats.csv": (
-        "player_id,match_id,minutes_played,goals,xg\n"
-        "1,99-00-prem-beta-united-vs-alpha-fc,88,0,0.3\n"
-        "1,99-00-champions-league-alpha-fc-vs-gamma-xi,90,1,0.9\n"
+        "player_id,match_id,minutes_played,goals,xg,"
+        "clearances,blocks,interceptions,tackles_won,tackles\n"
+        "1,99-00-prem-beta-united-vs-alpha-fc,88,0,0.3,0,0,1,0,1\n"
+        "1,99-00-champions-league-alpha-fc-vs-gamma-xi,90,1,0.9,1,0,1,1,2\n"
+        "1,99-00-prem-alpha-fc-vs-beta-united-r2,89,0,0.2,1,0,0,0,1\n"
+        "2,99-00-prem-beta-united-vs-alpha-fc,90,0,0.1,4,0,2,2,3\n"
+        "2,99-00-prem-alpha-fc-vs-beta-united-r2,90,0,0.2,3,1,1,1,2\n"
+        "3,99-00-prem-beta-united-vs-alpha-fc,90,0,0.0,7,1,2,3,4\n"
+        "3,99-00-prem-alpha-fc-vs-beta-united-r2,90,0,0.0,9,2,3,2,3\n"
     ),
     "data/2099-2000/By Gameweek/GW1/player_gameweek_stats.csv": (
         "id,first_name,second_name,web_name,event_points,total_points,goals_scored,minutes\n"
@@ -153,7 +167,8 @@ FILES = {
         "38,2099-05-20T15:00:00Z,30,1600.0,3,0,31,1500.0,True,12345,/m/9\n"
     ),
     "data/2098-2099/playermatchstats/GW1/playermatchstats.csv": (
-        "player_id,match_id,minutes_played,goals,xg\n9,12345,90,3,2.4\n"
+        "player_id,match_id,minutes_played,goals,xg,"
+        "clearances,blocks,interceptions,tackles_won,tackles\n9,12345,90,3,2.4,0,0,0,0,1\n"
     ),
 }
 
