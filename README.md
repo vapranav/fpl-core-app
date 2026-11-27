@@ -68,6 +68,27 @@ Interactive docs: http://localhost:8000/docs
 | `ETL_ON_STARTUP_IF_EMPTY` | `true` | bootstrap ingestion on first boot |
 | `ADMIN_TOKEN` | unset (open) | if set, `/api/admin/*` requires `X-Admin-Token` header |
 
+## Deploy to Fly.io
+
+```bash
+fly apps create fpl-core-api
+fly postgres create --name fpl-core-db --region iad --initial-cluster-size 1 \
+  --vm-size shared-cpu-1x --volume-size 1
+fly postgres attach fpl-core-db -a fpl-core-api   # sets DATABASE_URL secret
+fly secrets set ADMIN_TOKEN=<random> -a fpl-core-api
+cd backend && fly deploy -a fpl-core-api
+fly scale count 1 --yes -a fpl-core-api           # 1 machine is enough
+```
+
+Live: https://fpl-core-api.fly.dev · Docs: https://fpl-core-api.fly.dev/docs
+
+Notes:
+- `fly.toml` keeps `auto_stop_machines = "off"` + `min_machines_running = 1` —
+  the APScheduler runs in-process and must never be stopped.
+- Fly Postgres defaults to 256MB RAM, which OOM'd during the initial bulk
+  ingest; it was bumped to 512MB
+  (`fly machine update <id> -a fpl-core-db --vm-memory 512`).
+
 ## Deploy to Railway
 
 1. Push this repo to GitHub.
@@ -78,8 +99,6 @@ Interactive docs: http://localhost:8000/docs
    - `ADMIN_TOKEN` = a random secret
    - `SEASONS` = leave empty for all, or e.g. `2025-2026,2026-2027`
 5. **Settings → Networking → Generate Domain**. First boot ingests all seasons (~30s); `/api/health` responds immediately while it loads.
-
-CLI alternative: `brew install railway`, `railway login`, then `cd backend && railway init && railway up`.
 
 ## Data notes (learned the hard way)
 
