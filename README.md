@@ -102,6 +102,11 @@ fly scale count 1 --yes -a fpl-core-api           # 1 machine is enough
 
 Live: https://fpl-core-api.fly.dev · Docs: https://fpl-core-api.fly.dev/docs
 
+**Ongoing deploys are release-driven**: publishing a GitHub release runs
+`.github/workflows/deploy.yml`, which builds on Fly's builders from the
+merged commit (`--remote-only`) — no local state involved. One-off/manual
+deploys: Actions → Deploy → Run workflow, or `fly deploy` from `backend/`.
+
 Cost-minimal setup (~1 machine + 1GB volume ≈ single-digit $/mo):
 - **SQLite on a Fly volume**. The DB is a disposable cache of the GitHub
   dataset — losing it costs one ~30s re-ingestion. Fly volumes include free
