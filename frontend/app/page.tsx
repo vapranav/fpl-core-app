@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   badgeUrl,
   getPlayers,
@@ -11,6 +12,9 @@ import {
 
 const PAGE_SIZE = 50;
 
+const controlClass =
+  "rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground";
+
 function buildQuery(base: PlayersQuery, over: PlayersQuery): string {
   const merged: PlayersQuery = { ...base, ...over };
   const qs = new URLSearchParams();
@@ -21,6 +25,40 @@ function buildQuery(base: PlayersQuery, over: PlayersQuery): string {
 
 function fmt(v: number | null, digits = 1): string {
   return v === null || v === undefined ? "–" : v.toFixed(digits);
+}
+
+function Select({
+  name,
+  defaultValue,
+  children,
+}: {
+  name: string;
+  defaultValue: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <span className="relative inline-block">
+      <select
+        name={name}
+        defaultValue={defaultValue}
+        className={`${controlClass} appearance-none pr-9`}
+      >
+        {children}
+      </select>
+      <svg
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted"
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </span>
+  );
 }
 
 export default async function PlayersPage({
@@ -50,11 +88,16 @@ export default async function PlayersPage({
 
   return (
     <main className="mx-auto max-w-6xl p-6">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">FPL Core</h1>
-        <p className="text-sm text-neutral-500">
-          Season {data.season} · {data.total} players
-        </p>
+      <header className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-accent">
+            FPL Core
+          </h1>
+          <p className="text-sm text-muted">
+            Season {data.season} · {data.total} players
+          </p>
+        </div>
+        <ThemeToggle />
       </header>
 
       <form method="GET" className="mb-4 flex flex-wrap items-center gap-2">
@@ -63,48 +106,40 @@ export default async function PlayersPage({
           name="search"
           placeholder="Search player…"
           defaultValue={query.search}
-          className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+          className={controlClass}
         />
-        <select
-          name="position"
-          defaultValue={query.position ?? ""}
-          className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-        >
+        <Select name="position" defaultValue={query.position ?? ""}>
           <option value="">All positions</option>
           {POSITIONS.map((p) => (
             <option key={p} value={p}>
               {p}
             </option>
           ))}
-        </select>
-        <select
-          name="team_code"
-          defaultValue={query.team_code ?? ""}
-          className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-        >
+        </Select>
+        <Select name="team_code" defaultValue={query.team_code ?? ""}>
           <option value="">All teams</option>
           {teams.map((t) => (
             <option key={t.code} value={t.code}>
               {t.name}
             </option>
           ))}
-        </select>
+        </Select>
         <input type="hidden" name="sort" value={query.sort} />
         <input type="hidden" name="order" value={query.order} />
         <button
           type="submit"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white dark:bg-neutral-100 dark:text-neutral-900"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white dark:text-neutral-900"
         >
           Filter
         </button>
-        <Link href="/" className="px-2 py-2 text-sm text-neutral-500 underline">
+        <Link href="/" className="px-2 py-2 text-sm text-muted underline">
           Reset
         </Link>
       </form>
 
-      <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-800">
-        <table className="w-full text-sm">
-          <thead className="bg-neutral-50 text-left dark:bg-neutral-900">
+      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+        <table className="w-full text-sm tabular-nums">
+          <thead className="bg-background text-left">
             <tr>
               <th className="px-3 py-2 font-medium">Player</th>
               <th className="px-3 py-2 font-medium">Team</th>
@@ -120,7 +155,7 @@ export default async function PlayersPage({
                         order: nextOrder,
                         offset: "0",
                       })}
-                      className={active ? "font-bold underline" : "hover:underline"}
+                      className={active ? "font-bold text-accent underline" : "hover:underline"}
                       title={`Sort by ${c.label}`}
                     >
                       {c.label}
@@ -135,7 +170,7 @@ export default async function PlayersPage({
             {data.players.map((p) => (
               <tr
                 key={p.player_id}
-                className="border-t border-neutral-100 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-900"
+                className="border-t border-border transition-colors hover:bg-background"
               >
                 <td className="px-3 py-1.5">
                   <div className="flex items-center gap-2">
@@ -184,14 +219,14 @@ export default async function PlayersPage({
       </div>
 
       <nav className="mt-4 flex items-center justify-between text-sm">
-        <span className="text-neutral-500">
+        <span className="text-muted">
           Page {page} of {pages}
         </span>
         <div className="flex gap-2">
           {page > 1 && (
             <Link
               href={buildQuery(query, { offset: String(offset - PAGE_SIZE) })}
-              className="rounded-md border border-neutral-300 px-3 py-1.5 dark:border-neutral-700"
+              className="rounded-md border border-border bg-surface px-3 py-1.5"
             >
               ← Prev
             </Link>
@@ -199,7 +234,7 @@ export default async function PlayersPage({
           {page < pages && (
             <Link
               href={buildQuery(query, { offset: String(offset + PAGE_SIZE) })}
-              className="rounded-md border border-neutral-300 px-3 py-1.5 dark:border-neutral-700"
+              className="rounded-md border border-border bg-surface px-3 py-1.5"
             >
               Next →
             </Link>
