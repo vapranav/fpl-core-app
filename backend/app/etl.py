@@ -203,11 +203,23 @@ def _load_season(db: Session, root: Path, season: str) -> int:
             df = _coerce(df, models.Match)
             rows += _replace_season(db, models.Match, season, df)
 
-    # fixtures: latest GW snapshot covers the whole remaining schedule
-    fixture_files = [d / "fixtures.csv" for d in gw_dirs if (d / "fixtures.csv").exists()]
+    # fixtures: "By Tournament/Premier League" holds the full GW1-38 schedule;
+    # fall back to the latest "By Gameweek" snapshot (covers only that GW)
+    fixture_files: list[Path] = []
+    pl_dir = sdir / "By Tournament" / "Premier League"
+    if pl_dir.is_dir():
+        fixture_files = [
+            d / "fixtures.csv"
+            for d in pl_dir.iterdir()
+            if GW_RE.match(d.name) and (d / "fixtures.csv").exists()
+        ]
+    if not fixture_files:
+        fixture_files = [d / "fixtures.csv" for d in gw_dirs if (d / "fixtures.csv").exists()]
+        if fixture_files:
+            fixture_files = [max(fixture_files, key=lambda p: _gw_of(p) or 0)]
     if fixture_files:
-        latest = max(fixture_files, key=lambda p: _gw_of(p) or 0)
-        df = _coerce(_read_csv(latest), models.Fixture)
+        df = pd.concat([_read_csv(p) for p in fixture_files], ignore_index=True)
+        df = _coerce(df, models.Fixture)
         rows += _replace_season(db, models.Fixture, season, df)
 
     # per-GW player stats: GW-scoped -> load every GW folder

@@ -223,13 +223,27 @@ def differentials(
 
     Score = form + 2 * (xG+xA per 90) + points_per_game + fixture ease,
     where ease = (league mean Elo - mean Elo of next 3 opponents) / 100.
+    Players need >= 270 minutes played (per-90 stats are noise below that).
     """
     season = _season(db, season)
     gw = _latest_gw(db, season)
 
-    avg_elo = db.scalar(
-        select(func.avg(Team.elo)).where(Team.season == season)
-    ) or 1800.0
+    # teams.elo and future-fixture elos are often NULL: derive current Elo
+    # per team from their most recent finished match instead
+    elo_by_team: dict[int, float] = {}
+    recent = db.scalars(
+        select(Match)
+        .where(Match.season == season, Match.finished == True)  # noqa: E712
+        .order_by(Match.kickoff_time.desc())
+    ).all()
+    for m in recent:
+        if m.home_team is not None and m.home_team_elo is not None:
+            elo_by_team.setdefault(int(m.home_team), m.home_team_elo)
+        if m.away_team is not None and m.away_team_elo is not None:
+            elo_by_team.setdefault(int(m.away_team), m.away_team_elo)
+    avg_elo = (
+        sum(elo_by_team.values()) / len(elo_by_team) if elo_by_team else 1800.0
+    )
 
     fixtures = db.scalars(
         select(Fixture)
@@ -253,7 +267,8 @@ def differentials(
               & (PlayerStats.gw == gw))
         .where(Player.season == season,
                PlayerStats.selected_by_percent <= max_ownership,
-               func.coalesce(PlayerStats.minutes, 0) > 0)
+               # ~3 full matches: below this, per-90 stats are noise
+               func.coalesce(PlayerStats.minutes, 0) >= 270)
     )
     if position:
         q = q.where(Player.position == position)
@@ -264,7 +279,10 @@ def differentials(
         for f in by_team.get(p.team_code, [])[:3]:
             home = int(f.home_team) == p.team_code if f.home_team is not None else False
             opp_code = f.away_team if home else f.home_team
-            opp_elo = f.away_team_elo if home else f.home_team_elo
+            # prefer the fixture's own Elo; fall back to the latest-match value
+            opp_elo = (f.away_team_elo if home else f.home_team_elo) or (
+                elo_by_team.get(int(opp_code)) if opp_code is not None else None
+            )
             nxt.append({
                 "gw": f.gameweek,
                 "home": home,
