@@ -25,13 +25,13 @@ jobs:
       - name: Create preview app if missing
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: fly status -a "$APP" >/dev/null 2>&1 || fly apps create "$APP" --org personal
+        run: flyctl status -a "$APP" >/dev/null 2>&1 || flyctl apps create "$APP" --org personal
 
       - name: Deploy preview
         working-directory: backend
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: fly deploy --remote-only -a "$APP" -c fly.preview.toml
+        run: flyctl deploy --remote-only -a "$APP" -c fly.preview.toml
 
       - name: Smoke gate
         env:
@@ -98,4 +98,4 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           APP: fpl-core-api-pr-${{ github.event.pull_request.number }}
-        run: fly apps destroy "$APP" --yes || true
+        run: flyctl apps destroy "$APP" --yes || true
