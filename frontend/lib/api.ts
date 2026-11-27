@@ -78,6 +78,74 @@ export function getTeams(season?: string): Promise<{ teams: Team[] }> {
   return get(`/api/teams${season ? `?season=${season}` : ""}`);
 }
 
+// ---- player detail --------------------------------------------------------
+
+export interface PlayerDetail extends Omit<Player, "stats" | "team_name"> {
+  season_stats: PlayerStats | null;
+  team_history: { gw: number; team_code: number }[];
+}
+
+export interface GameweekStat {
+  gw: number;
+  event_points: number | null;
+  total_points: number | null;
+  goals_scored: number | null;
+  assists: number | null;
+  minutes: number | null;
+  expected_goals: number | null;
+  expected_assists: number | null;
+  defensive_contribution: number | null;
+  now_cost: number | null;
+  selected_by_percent: number | null;
+}
+
+export interface MatchInfo {
+  match_id: string;
+  gameweek: number | null;
+  kickoff_time: string | null;
+  home_team: number;
+  away_team: number;
+  home_score: number | null;
+  away_score: number | null;
+  home_team_elo: number | null;
+  away_team_elo: number | null;
+}
+
+export interface PlayerMatchRow {
+  gw: number | null;
+  match_id: string;
+  minutes_played: number | null;
+  goals: number | null;
+  assists: number | null;
+  xg: number | null;
+  xa: number | null;
+  total_shots: number | null;
+  shots_on_target: number | null;
+  tackles_won: number | null;
+  interceptions: number | null;
+  clearances: number | null;
+  blocks: number | null;
+  match: MatchInfo;
+}
+
+export function getPlayer(id: number, season?: string): Promise<PlayerDetail> {
+  return get(`/api/players/${id}${season ? `?season=${season}` : ""}`);
+}
+
+export function getPlayerGameweeks(
+  id: number,
+  season?: string,
+): Promise<{ gameweeks: GameweekStat[] }> {
+  return get(`/api/players/${id}/gameweeks${season ? `?season=${season}` : ""}`);
+}
+
+export function getPlayerMatches(
+  id: number,
+  season?: string,
+): Promise<{ matches: PlayerMatchRow[] }> {
+  return get(`/api/players/${id}/matches${season ? `?season=${season}` : ""}`);
+}
+
 export const POSITIONS = ["Goalkeeper", "Defender", "Midfielder", "Forward"] as const;
 
 export const SORTABLE: { key: string; label: string }[] = [

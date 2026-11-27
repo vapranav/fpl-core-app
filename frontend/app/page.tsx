@@ -91,7 +91,7 @@ export default async function PlayersPage({
     <main className="mx-auto max-w-6xl p-6">
       <header className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight text-accent">
+          <h1 className="font-display text-3xl font-bold tracking-tight">
             FPL Core
           </h1>
           <p className="text-sm text-muted">
@@ -156,7 +156,7 @@ export default async function PlayersPage({
                         order: nextOrder,
                         offset: "0",
                       })}
-                      className={active ? "font-bold text-accent underline" : "hover:underline"}
+                      className={active ? "font-bold underline" : "text-muted hover:text-foreground hover:underline"}
                       title={`Sort by ${c.label}`}
                     >
                       {c.label}
@@ -176,7 +176,12 @@ export default async function PlayersPage({
                 <td className="px-3 py-1.5">
                   <div className="flex items-center gap-2">
                     <PlayerPhoto src={p.photo_url} alt={p.web_name} priority={i < 10} />
-                    <span className="font-medium">{p.web_name}</span>
+                    <Link
+                      href={`/players/${p.player_id}`}
+                      className="font-medium hover:underline"
+                    >
+                      {p.web_name}
+                    </Link>
                   </div>
                 </td>
                 <td className="px-3 py-1.5">
