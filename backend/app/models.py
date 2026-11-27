@@ -205,6 +205,23 @@ Match = _make_model(
     },
 )
 
+class Fixture(Base):
+    """Scheduled fixtures (latest snapshot). Same schema family as matches:
+    finished=False rows are upcoming, and team ids arrive as floats."""
+
+    __tablename__ = "fixtures"
+
+    season = Column(String(9), primary_key=True)
+    match_id = Column(String(150), primary_key=True)
+    gameweek = Column(Integer, index=True)
+    kickoff_time = Column(DateTime)
+    home_team = Column(Float, index=True)
+    away_team = Column(Float, index=True)
+    home_team_elo = Column(Float)
+    away_team_elo = Column(Float)
+    finished = Column(Boolean)
+
+
 # ---------------------------------------------------------------------------
 # Gameweek summaries + ingestion bookkeeping
 # ---------------------------------------------------------------------------

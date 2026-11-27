@@ -52,10 +52,12 @@ SEASON_LEVEL_FILES = {
 # model -> datetime columns that need coercion
 DATETIME_COLS = {
     models.Match.__tablename__: ["kickoff_time"],
+    models.Fixture.__tablename__: ["kickoff_time"],
     models.Gameweek.__tablename__: ["deadline_time"],
 }
 BOOL_COLS = {
     models.Match.__tablename__: ["finished"],
+    models.Fixture.__tablename__: ["finished"],
     models.Gameweek.__tablename__: ["finished", "is_previous", "is_current", "is_next"],
 }
 
@@ -138,7 +140,7 @@ def _replace_season(db: Session, model, season: str, df: pd.DataFrame,
 _DELETE_ORDER = [
     models.PlayerStats, models.PlayerGameweekStats, models.PlayerMatchStats,
     models.PlayerTeamHistory, models.Player, models.Team, models.Match,
-    models.Gameweek,
+    models.Fixture, models.Gameweek,
 ]
 
 
@@ -200,6 +202,13 @@ def _load_season(db: Session, root: Path, season: str) -> int:
             df = pd.concat([_read_csv(p) for p in match_files], ignore_index=True)
             df = _coerce(df, models.Match)
             rows += _replace_season(db, models.Match, season, df)
+
+    # fixtures: latest GW snapshot covers the whole remaining schedule
+    fixture_files = [d / "fixtures.csv" for d in gw_dirs if (d / "fixtures.csv").exists()]
+    if fixture_files:
+        latest = max(fixture_files, key=lambda p: _gw_of(p) or 0)
+        df = _coerce(_read_csv(latest), models.Fixture)
+        rows += _replace_season(db, models.Fixture, season, df)
 
     # per-GW player stats: GW-scoped -> load every GW folder
     for d in gw_dirs:

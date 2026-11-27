@@ -7,7 +7,7 @@ from .config import settings
 from .db import get_db
 from .etl import refresh
 from .models import (
-    Gameweek, IngestionRun, Match, Player, PlayerGameweekStats,
+    Fixture, Gameweek, IngestionRun, Match, Player, PlayerGameweekStats,
     PlayerMatchStats, PlayerStats, PlayerTeamHistory, Team,
 )
 from .schemas import player_photo_url, team_badge_url
@@ -203,6 +203,103 @@ def player_matches(player_id: int, season: str | None = None,
         "matches": [
             {**_row(pms), "match": _row(m)} for pms, m in rows
         ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Differentials
+# ---------------------------------------------------------------------------
+
+
+@api.get("/differentials")
+def differentials(
+    season: str | None = None,
+    max_ownership: float = Query(10.0, ge=0, le=100),
+    position: str | None = Query(None, pattern="^(Goalkeeper|Defender|Midfielder|Forward)$"),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    """Low-ownership players in form with soft upcoming PL fixtures.
+
+    Score = form + 2 * (xG+xA per 90) + points_per_game + fixture ease,
+    where ease = (league mean Elo - mean Elo of next 3 opponents) / 100.
+    """
+    season = _season(db, season)
+    gw = _latest_gw(db, season)
+
+    avg_elo = db.scalar(
+        select(func.avg(Team.elo)).where(Team.season == season)
+    ) or 1800.0
+
+    fixtures = db.scalars(
+        select(Fixture)
+        .where(Fixture.season == season, Fixture.finished == False,  # noqa: E712
+               Fixture.match_id.like("%prem%"))
+        .order_by(Fixture.kickoff_time)
+    ).all()
+    team_names = dict(
+        db.execute(select(Team.code, Team.name).where(Team.season == season)).all()
+    )
+    by_team: dict[int, list[Fixture]] = {}
+    for f in fixtures:
+        for code in (f.home_team, f.away_team):
+            if code is not None:
+                by_team.setdefault(int(code), []).append(f)
+
+    q = (
+        select(Player, PlayerStats)
+        .join(PlayerStats, (PlayerStats.season == Player.season)
+              & (PlayerStats.id == Player.player_id)
+              & (PlayerStats.gw == gw))
+        .where(Player.season == season,
+               PlayerStats.selected_by_percent <= max_ownership,
+               func.coalesce(PlayerStats.minutes, 0) > 0)
+    )
+    if position:
+        q = q.where(Player.position == position)
+
+    rows = []
+    for p, st in db.execute(q).all():
+        nxt = []
+        for f in by_team.get(p.team_code, [])[:3]:
+            home = int(f.home_team) == p.team_code if f.home_team is not None else False
+            opp_code = f.away_team if home else f.home_team
+            opp_elo = f.away_team_elo if home else f.home_team_elo
+            nxt.append({
+                "gw": f.gameweek,
+                "home": home,
+                "opp_code": int(opp_code) if opp_code is not None else None,
+                "opp_name": team_names.get(int(opp_code)) if opp_code is not None else None,
+                "opp_elo": opp_elo,
+            })
+        opp_elos = [n["opp_elo"] for n in nxt if n["opp_elo"] is not None]
+        ease = (avg_elo - sum(opp_elos) / len(opp_elos)) / 100 if opp_elos else 0.0
+        minutes = st.minutes or 0
+        xgi90 = ((st.expected_goals or 0) + (st.expected_assists or 0)) / minutes * 90 if minutes else 0.0
+        score = (st.form or 0) + 2 * xgi90 + (st.points_per_game or 0) + ease
+        rows.append({
+            "player_id": p.player_id,
+            "web_name": p.web_name,
+            "team_code": p.team_code,
+            "team_name": team_names.get(p.team_code),
+            "position": p.position,
+            "photo_url": player_photo_url(p.player_code),
+            "ownership": st.selected_by_percent,
+            "form": st.form,
+            "points_per_game": st.points_per_game,
+            "xgi_per_90": round(xgi90, 2),
+            "fixture_ease": round(ease, 2),
+            "score": round(score, 2),
+            "next_fixtures": nxt,
+        })
+
+    rows.sort(key=lambda r: r["score"], reverse=True)
+    return {
+        "season": season,
+        "max_ownership": max_ownership,
+        "league_avg_elo": round(avg_elo, 1),
+        "total": len(rows),
+        "differentials": rows[:limit],
     }
 
 

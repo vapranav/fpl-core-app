@@ -121,6 +121,40 @@ def test_gameweeks(client):
     assert current[0]["id"] == 2
 
 
+def test_differentials_filters_by_ownership(client):
+    data = client.get("/api/differentials", params={"season": "2099-2000"}).json()
+    # default ceiling 10%: only Wall (5%) — Striker 26%, Playmaker 11% excluded
+    assert [d["web_name"] for d in data["differentials"]] == ["Wall"]
+
+
+def test_differentials_scoring_order(client):
+    data = client.get(
+        "/api/differentials", params={"season": "2099-2000", "max_ownership": 30}
+    ).json()
+    names = [d["web_name"] for d in data["differentials"]]
+    assert names == ["Striker", "Playmaker", "Wall"]
+    scores = [d["score"] for d in data["differentials"]]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_differentials_fixture_run(client):
+    data = client.get(
+        "/api/differentials", params={"season": "2099-2000", "max_ownership": 30}
+    ).json()
+    striker = next(d for d in data["differentials"] if d["web_name"] == "Striker")
+    assert len(striker["next_fixtures"]) == 3
+    first = striker["next_fixtures"][0]
+    assert first["gw"] == 3
+    assert first["home"] is False  # GW3: Striker's team 10 is away at Beta
+    assert first["opp_code"] == 20
+    assert first["opp_name"] == "Beta United"
+    assert first["opp_elo"] == 1750.25
+    # the UCL fixture (no 'prem' in slug) is excluded from fixture runs
+    assert all(f["opp_name"] is not None for f in striker["next_fixtures"])
+    # fixture ease: team 10 plays 1750.25 x3, league avg is 1825.4 -> positive ease
+    assert striker["fixture_ease"] > 0
+
+
 def test_admin_open_when_token_unset(client):
     assert client.get("/api/admin/ingestions").status_code == 200
 
