@@ -32,10 +32,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="FPL Core API", version="0.1.0", lifespan=lifespan)
 
-# permissive for now; tighten when the frontend origin is known
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://fpl-core-app.vercel.app",
+        "http://localhost:3000",
+    ],
+    # Vercel PR preview deployments: fpl-core-app-<hash>-<user>.vercel.app
+    allow_origin_regex=r"https://fpl-core-app-[a-z0-9-]+\.vercel\.app",
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
