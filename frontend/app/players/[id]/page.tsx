@@ -36,7 +36,8 @@ function competitionOf(matchId: string): string {
 const tidyName = (s: string) =>
   s
     .split("-")
-    .filter(Boolean)
+    // 26/27 slugs append a date (…-2026-09-08): drop all-digit tokens
+    .filter((w) => w && !/^\d+$/.test(w))
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 
@@ -53,6 +54,19 @@ function slugClubs(matchId: string): { home: string; away: string } {
     }
   }
   return { home: tidyName(home), away: tidyName(right) };
+}
+
+function BadgePlaceholder() {
+  return (
+    <span
+      className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-border text-muted"
+      aria-label="No badge available"
+    >
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5z" />
+      </svg>
+    </span>
+  );
 }
 
 function resultOf(m: MatchInfo, playerTeam: number): { label: string; cls: string } {
@@ -246,8 +260,8 @@ export default async function PlayerPage({
                       </span>
                     </td>
                     <td className="px-3 py-1.5">
-                      <span className="mr-1.5 inline-flex items-center gap-1">
-                        {opp !== null && (
+                      <span className="inline-flex items-center gap-1.5">
+                        {opp !== null ? (
                           <Image
                             src={badgeUrl(opp)}
                             alt=""
@@ -255,11 +269,10 @@ export default async function PlayerPage({
                             height={16}
                             className="inline"
                           />
+                        ) : (
+                          <BadgePlaceholder />
                         )}
-                        {home ? "vs" : "@"} {oppName}
-                      </span>
-                      <span className="text-muted">
-                        {m.home_score ?? "–"}–{m.away_score ?? "–"}
+                        {oppName}
                       </span>
                     </td>
                     <td className="px-3 py-1.5">
