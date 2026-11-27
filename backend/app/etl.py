@@ -212,6 +212,8 @@ def _load_season(db: Session, root: Path, season: str) -> int:
             if path.exists():
                 df = _coerce(_read_csv(path), model)
                 df = df.assign(season=season, gw=gw)
+                pk = [c.name for c in model.__table__.primary_key.columns]
+                df = df.drop_duplicates(subset=pk, keep="last")
                 records = df.to_dict(orient="records")
                 db.bulk_insert_mappings(model, records)
                 rows += len(records)

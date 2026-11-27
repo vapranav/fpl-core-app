@@ -10,7 +10,8 @@ class Settings(BaseSettings):
 
     @property
     def sqlalchemy_url(self) -> str:
-        # Railway/Heroku-style URLs lack the driver suffix SQLAlchemy needs
+        # Hosted providers (Fly, Heroku) hand out postgres:// URLs without
+        # the driver suffix SQLAlchemy needs
         url = self.database_url
         if url.startswith("postgres://"):
             url = "postgresql://" + url[len("postgres://"):]

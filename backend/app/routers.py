@@ -1,6 +1,6 @@
 """API routers."""
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
-from sqlalchemy import asc, desc, distinct, func, select
+from sqlalchemy import asc, desc, func, select
 from sqlalchemy.orm import Session
 
 from .config import settings
@@ -57,7 +57,7 @@ def health():
 
 @api.get("/seasons")
 def seasons(db: Session = Depends(get_db)):
-    rows = db.scalars(select(distinct(Player.season)).order_by(Player.season)).all()
+    rows = db.scalars(select(Player.season).distinct().order_by(Player.season)).all()
     return {"seasons": rows}
 
 

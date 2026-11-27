@@ -89,17 +89,6 @@ Notes:
   ingest; it was bumped to 512MB
   (`fly machine update <id> -a fpl-core-db --vm-memory 512`).
 
-## Deploy to Railway
-
-1. Push this repo to GitHub.
-2. Railway dashboard → **New Project → Deploy from GitHub repo** → select it, set **root directory to `backend`** (Dockerfile + `railway.toml` are detected automatically).
-3. **Add → Database → PostgreSQL** in the same project.
-4. API service → **Variables**:
-   - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (reference variable; the app normalizes the scheme itself)
-   - `ADMIN_TOKEN` = a random secret
-   - `SEASONS` = leave empty for all, or e.g. `2025-2026,2026-2027`
-5. **Settings → Networking → Generate Domain**. First boot ingests all seasons (~30s); `/api/health` responds immediately while it loads.
-
 ## Data notes (learned the hard way)
 
 - `playerstats.csv` is a **cumulative snapshot history** (~1 row/player/GW),
