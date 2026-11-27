@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { PlayerPhoto } from "@/components/player-photo";
-import { Select, inputClass } from "@/components/select";
+import { SearchBar } from "@/components/search-bar";
+import { Select } from "@/components/select";
 import {
   badgeUrl,
   getPlayers,
@@ -80,13 +81,7 @@ export default async function PlayersPage({
       </header>
 
       <form method="GET" className="mb-4 flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          name="search"
-          placeholder="Search player…"
-          defaultValue={query.search}
-          className={inputClass}
-        />
+        <SearchBar defaultValue={query.search} />
         <Select name="position" defaultValue={query.position ?? ""}>
           <option value="">All positions</option>
           {POSITIONS.map((p) => (

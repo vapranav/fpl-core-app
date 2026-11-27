@@ -219,6 +219,59 @@ def player_matches(
 
 
 # ---------------------------------------------------------------------------
+# Search
+# ---------------------------------------------------------------------------
+
+
+@api.get("/search/players")
+def search_players(
+    q: str = Query(""),
+    season: str | None = None,
+    limit: int = Query(8, ge=1, le=20),
+    db: Session = Depends(get_db),
+):
+    """Lightweight typeahead suggestions. Slim rows only; <2 chars -> empty."""
+    q = q.strip()
+    if len(q) < 2:
+        return {"results": []}
+    season = _season(db, season)
+    gw = _latest_gw(db, season)
+    pattern = f"%{q}%"
+    rows = db.execute(
+        select(Player, PlayerStats.total_points, Team.name.label("team_name"))
+        .join(
+            PlayerStats,
+            (PlayerStats.season == Player.season)
+            & (PlayerStats.id == Player.player_id)
+            & (PlayerStats.gw == gw),
+        )
+        .join(Team, (Team.season == Player.season) & (Team.code == Player.team_code))
+        .where(
+            Player.season == season,
+            Player.web_name.ilike(pattern)
+            | Player.first_name.ilike(pattern)
+            | Player.second_name.ilike(pattern),
+        )
+        .order_by(desc(PlayerStats.total_points).nulls_last())
+        .limit(limit)
+    ).all()
+    return {
+        "results": [
+            {
+                "player_id": p.player_id,
+                "web_name": p.web_name,
+                "team_code": p.team_code,
+                "team_name": team_name,
+                "position": p.position,
+                "photo_url": player_photo_url(p.player_code),
+                "total_points": pts,
+            }
+            for p, pts, team_name in rows
+        ]
+    }
+
+
+# ---------------------------------------------------------------------------
 # Differentials
 # ---------------------------------------------------------------------------
 
