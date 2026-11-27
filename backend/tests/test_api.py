@@ -113,6 +113,16 @@ def test_matches_filters(client):
     assert legacy["matches"][0]["match_id"] == "12345"
 
 
+def test_matches_finished_filter(client):
+    # GW2 fixture is unfinished; GW1 is finished
+    done = client.get("/api/matches", params={"season": "2099-2000", "finished": "true"}).json()
+    assert [m["match_id"] for m in done["matches"]] == ["99-00-prem-alpha-fc-vs-beta-united"]
+    upcoming = client.get(
+        "/api/matches", params={"season": "2099-2000", "finished": "false"}
+    ).json()
+    assert [m["match_id"] for m in upcoming["matches"]] == ["99-00-prem-beta-united-vs-alpha-fc"]
+
+
 def test_match_timeline_happy_path(client):
     data = client.get(
         "/api/matches/99-00-prem-alpha-fc-vs-beta-united/timeline",

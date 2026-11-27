@@ -171,6 +171,7 @@ export interface MatchesQuery {
   season?: string;
   gw?: string;
   team_code?: string;
+  finished?: string;
   limit?: string;
   offset?: string;
 }

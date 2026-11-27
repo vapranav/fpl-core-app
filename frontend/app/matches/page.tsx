@@ -61,11 +61,18 @@ function MatchRow({
 export default async function MatchesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ gw?: string; team?: string }>;
+  searchParams: Promise<{ gw?: string; team?: string; upcoming?: string }>;
 }) {
   const sp = await searchParams;
+  // timelines only exist for played matches: hide upcoming unless asked
+  const showUpcoming = sp.upcoming === "on";
   const [{ season, total, matches }, teamsData, gwsData] = await Promise.all([
-    getMatches({ gw: sp.gw, team_code: sp.team, limit: "500" }),
+    getMatches({
+      gw: sp.gw,
+      team_code: sp.team,
+      finished: showUpcoming ? undefined : "true",
+      limit: "500",
+    }),
     getTeams(),
     getGameweeks(),
   ]);
@@ -103,6 +110,15 @@ export default async function MatchesPage({
             </option>
           ))}
         </Select>
+        <label className="text-muted inline-flex items-center gap-1.5 text-sm">
+          <input
+            type="checkbox"
+            name="upcoming"
+            defaultChecked={showUpcoming}
+            className="accent-accent h-4 w-4"
+          />
+          Show upcoming
+        </label>
         <button
           type="submit"
           className="bg-accent rounded-md px-4 py-2 text-sm font-medium text-white dark:text-neutral-900"

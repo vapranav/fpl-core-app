@@ -411,6 +411,7 @@ def matches(
     season: str | None = None,
     gw: int | None = None,
     team_code: int | None = None,
+    finished: bool | None = None,
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -421,6 +422,8 @@ def matches(
         q = q.where(Match.gameweek == gw)
     if team_code is not None:
         q = q.where((Match.home_team == team_code) | (Match.away_team == team_code))
+    if finished is not None:
+        q = q.where(Match.finished == finished)
     q = q.order_by(Match.kickoff_time)
     total = db.scalar(select(func.count()).select_from(q.subquery()))
     rows = db.scalars(q.limit(limit).offset(offset)).all()
