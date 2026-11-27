@@ -20,9 +20,19 @@ const FEATURES = [
     desc: "Low-ownership players in form with soft upcoming fixtures, scored with team Elo. Find the gems the crowd is sleeping on.",
   },
   {
-    href: "/compare",
-    title: "Compare players",
-    desc: "Side-by-side season stats and per-gameweek points charts for up to four players.",
+    href: "/rotation",
+    title: "Rotation & fatigue radar",
+    desc: "Who played a midweek cup or European match — and how many minutes it usually costs them at the weekend.",
+  },
+  {
+    href: "/matches",
+    title: "Match timeline explorer",
+    desc: "xG flow, per-minute momentum and shot maps for every match across all competitions.",
+  },
+  {
+    href: "/defcon",
+    title: "Defensive contribution scout",
+    desc: "Clearances, blocks, interceptions and tackles per 90 — find the players collecting hidden FPL points.",
   },
 ];
 

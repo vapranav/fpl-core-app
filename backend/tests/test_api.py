@@ -149,6 +149,10 @@ def test_match_timeline_happy_path(client):
     assert goal["player_name"] == "Striker"
     assert goal["xg"] == 0.45
     assert data["shots"][2]["player_id"] is None  # empty CSV cell -> null
+    # blank player_name resolved from the players table via player_id
+    assert data["shots"][1]["player_name"] == "Wall"
+    # no id and no name -> stays null
+    assert data["shots"][2]["player_name"] is None
 
     assert [r["minute"] for r in data["momentum"]] == [1.0, 2.0, 3.0]
     assert data["momentum"][1]["value"] == -40
