@@ -62,11 +62,13 @@ FILES = {
         "gameweek,kickoff_time,home_team,home_team_elo,home_score,away_score,"
         "away_team,away_team_elo,finished,match_id,match_url,"
         "home_expected_goals_xg,away_expected_goals_xg\n"
-        # unfinished: exercises the finished= filter on /api/matches
-        "2,2099-08-08T15:00:00Z,20,1750.25,0,0,10,1900.5,False,"
+        "2,2099-08-08T15:00:00Z,20,1750.25,0,0,10,1900.5,True,"
         "99-00-prem-beta-united-vs-alpha-fc,/m/2,0.4,1.1\n"
         "2,2099-08-14T20:00:00Z,10,1900.5,2,1,,,True,"
         "99-00-champions-league-alpha-fc-vs-gamma-xi,/m/3,1.5,0.8\n"
+        # dedicated unfinished row: exercises the finished= filter on /api/matches
+        "3,2099-08-22T15:00:00Z,10,1900.5,,,,,False,"
+        "99-00-prem-alpha-fc-vs-beta-united-gw3up,/m/4,,\n"
     ),
     "data/2099-2000/By Gameweek/GW1/playermatchstats.csv": (
         "player_id,match_id,minutes_played,goals,xg\n"

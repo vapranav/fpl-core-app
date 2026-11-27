@@ -38,7 +38,7 @@ def test_refresh_loads_both_layouts(mock_source, clean_db):
     assert _count(Player, "2098-2099") == 1
 
     # matches: current = concat of per-GW files, legacy = master file
-    assert _count(Match, "2099-2000") == 3
+    assert _count(Match, "2099-2000") == 4
     assert _count(Match, "2098-2099") == 1
 
     # fixtures: only the latest-GW snapshot, only the current layout has them
