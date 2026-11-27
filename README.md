@@ -68,6 +68,27 @@ Interactive docs: http://localhost:8000/docs
 | `ETL_ON_STARTUP_IF_EMPTY` | `true` | bootstrap ingestion on first boot |
 | `ADMIN_TOKEN` | unset (open) | if set, `/api/admin/*` requires `X-Admin-Token` header |
 
+## Frontend (Next.js)
+
+`frontend/` — App Router + TypeScript + Tailwind. Server components fetch the
+API at request time; all state lives in the URL (sort, filters, pagination
+are shareable links).
+
+```bash
+cd frontend
+cp .env.example .env.local          # NEXT_PUBLIC_API_URL=http://localhost:8000
+npm install
+npm run dev                          # http://localhost:3000
+```
+
+### Deploy to Vercel (free tier)
+
+1. Vercel dashboard → **Add New → Project** → import this repo.
+2. **Root Directory: `frontend`** (Next.js is auto-detected).
+3. Env var: `NEXT_PUBLIC_API_URL` = `https://fpl-core-api.fly.dev`.
+4. Deploy. Once live, tighten the backend's CORS `allow_origins` in
+   `backend/app/main.py` to the Vercel domain and redeploy.
+
 ## Deploy to Fly.io
 
 ```bash
