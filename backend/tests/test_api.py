@@ -93,7 +93,7 @@ def test_player_gameweeks(client):
 
 def test_player_matches_joined(client):
     data = client.get("/api/players/1/matches").json()
-    assert len(data["matches"]) == 3  # 2 league + 1 midweek UCL
+    assert len(data["matches"]) == 4  # 3 league + 1 midweek UCL
     first = data["matches"][0]
     assert first["goals"] == 2
     assert first["match"]["match_id"] == "99-00-prem-alpha-fc-vs-beta-united"
@@ -102,11 +102,11 @@ def test_player_matches_joined(client):
 
 def test_matches_filters(client):
     data = client.get("/api/matches", params={"season": "2099-2000"}).json()
-    assert data["total"] == 4
+    assert data["total"] == 5
     assert client.get("/api/matches", params={"season": "2099-2000", "gw": 1}).json()["total"] == 1
     assert (
         client.get("/api/matches", params={"season": "2099-2000", "team_code": 10}).json()["total"]
-        == 4
+        == 5
     )
     # legacy integer match id round-trips as a string
     legacy = client.get("/api/matches", params={"season": "2098-2099"}).json()
@@ -119,6 +119,7 @@ def test_matches_finished_filter(client):
     assert [m["match_id"] for m in done["matches"]] == [
         "99-00-prem-alpha-fc-vs-beta-united",
         "99-00-prem-beta-united-vs-alpha-fc",
+        "99-00-prem-alpha-fc-vs-beta-united-r2",
         "99-00-champions-league-alpha-fc-vs-gamma-xi",
     ]
     upcoming = client.get(
@@ -226,6 +227,61 @@ def test_differentials_fixture_run(client):
     assert striker["fixture_ease"] > 0
 
 
+def test_defcon_ordering_and_math(client):
+    data = client.get("/api/defcon", params={"season": "2099-2000", "min_minutes": 0}).json()
+    # distinct fixture profiles: Wall high CBIT, Playmaker mid, Striker low
+    assert [p["web_name"] for p in data["players"]] == ["Wall", "Playmaker", "Striker"]
+    assert data["total"] == 3
+
+    wall = data["players"][0]
+    assert wall["cbit_total"] == 44  # 15 + 13 + 16
+    assert wall["matches_played"] == 3
+    assert wall["minutes_total"] == 270
+    assert wall["cbit_per_90"] == 14.67  # 44 * 90 / 270
+    assert wall["cbit_per_match"] == 14.67  # 44 / 3
+    assert wall["threshold_rate"] == 1.0  # 15, 13, 16 all >= 10
+    assert wall["clearances_per_90"] == 8.0  # 24 * 90 / 270
+    assert wall["blocks_per_90"] == 1.67
+    assert wall["interceptions_per_90"] == 2.67
+    assert wall["tackles_won_per_90"] == 2.33
+    # Wall (Beta) faced Alpha (elo 1900.5) in all three matches
+    assert wall["avg_opp_elo"] == 1900.5
+
+    playmaker = data["players"][1]
+    assert playmaker["cbit_total"] == 21
+    assert playmaker["cbit_per_90"] == 7.0
+    assert playmaker["threshold_rate"] == 0.0
+
+    striker = data["players"][2]
+    assert striker["cbit_total"] == 4  # UCL match excluded (non-prem)
+    assert striker["minutes_total"] == 267
+    assert striker["cbit_per_90"] == 1.35  # 4 * 90 / 267
+    assert striker["cbit_per_match"] == 1.33
+    # Alpha players faced Beta (elo 1750.25 -> 1dp) in every league match
+    assert striker["avg_opp_elo"] == 1750.2
+
+
+def test_defcon_minutes_floor(client):
+    # default 270-minute floor: Striker (267') drops out, Wall/Playmaker (270') stay
+    data = client.get("/api/defcon", params={"season": "2099-2000"}).json()
+    assert [p["web_name"] for p in data["players"]] == ["Wall", "Playmaker"]
+
+
+def test_defcon_position_filter(client):
+    data = client.get(
+        "/api/defcon",
+        params={"season": "2099-2000", "position": "Defender", "min_minutes": 0},
+    ).json()
+    assert [p["web_name"] for p in data["players"]] == ["Wall"]
+    assert client.get("/api/defcon", params={"position": "Striker"}).status_code == 422
+
+
+def test_defcon_empty_season(client):
+    # legacy season has no prem matches -> empty board
+    data = client.get("/api/defcon", params={"season": "2098-2099"}).json()
+    assert data["players"] == []
+
+
 def test_search_matches_web_name(client):
     data = client.get("/api/search/players", params={"q": "strik"}).json()
     assert [r["web_name"] for r in data["results"]] == ["Striker"]
@@ -276,7 +332,7 @@ def test_rotation_risk_history_delta_null_without_samples(client):
     # no PL match in the fixture data follows a midweek game -> no history
     assert striker["history"]["sample"] == 0
     assert striker["history"]["delta"] is None
-    assert striker["history"]["baseline_minutes"] == 89.0  # (90 + 88) / 2
+    assert striker["history"]["baseline_minutes"] == 89.0  # (90 + 88 + 89) / 3
 
 
 def test_rotation_risk_window_excludes_old_matches(client):
