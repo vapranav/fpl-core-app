@@ -134,9 +134,17 @@ export default async function PlayerPage({
   return (
     <main className="mx-auto max-w-6xl p-6">
       <header className="mb-6 flex items-start justify-between">
-        <Link href="/" className="text-sm text-muted hover:underline">
-          ← All players
-        </Link>
+        <div className="flex items-center gap-3 text-sm">
+          <Link href="/" className="text-muted hover:underline">
+            ← All players
+          </Link>
+          <Link
+            href={`/compare?ids=${player.player_id}`}
+            className="text-muted hover:underline"
+          >
+            Compare
+          </Link>
+        </div>
         <ThemeToggle />
       </header>
 
