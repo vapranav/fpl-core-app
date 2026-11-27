@@ -1,10 +1,9 @@
 name: Deploy
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "backend/**"
+  release:
+    types: [published]
+  workflow_dispatch: # manual escape hatch: Actions -> Deploy -> Run workflow
 
 jobs:
   deploy:
