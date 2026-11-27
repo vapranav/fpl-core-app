@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { PlayerPhoto } from "@/components/player-photo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   badgeUrl,
@@ -174,17 +175,7 @@ export default async function PlayersPage({
               >
                 <td className="px-3 py-1.5">
                   <div className="flex items-center gap-2">
-                    {p.photo_url && (
-                      <Image
-                        src={p.photo_url}
-                        alt={p.web_name}
-                        width={40}
-                        height={50}
-                        sizes="40px"
-                        priority={i < 10}
-                        className="rounded"
-                      />
-                    )}
+                    <PlayerPhoto src={p.photo_url} alt={p.web_name} priority={i < 10} />
                     <span className="font-medium">{p.web_name}</span>
                   </div>
                 </td>
