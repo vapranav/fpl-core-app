@@ -5,19 +5,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # sqlite for local dev, postgresql+psycopg2://... in production
+    # SQLite everywhere: ./fpl.db locally, /data/fpl.db on the Fly volume
     database_url: str = "sqlite:///./fpl.db"
-
-    @property
-    def sqlalchemy_url(self) -> str:
-        # Hosted providers (Fly, Heroku) hand out postgres:// URLs without
-        # the driver suffix SQLAlchemy needs
-        url = self.database_url
-        if url.startswith("postgres://"):
-            url = "postgresql://" + url[len("postgres://"):]
-        if url.startswith("postgresql://") and "+" not in url.split("://")[0]:
-            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
-        return url
 
     repo_owner: str = "olbauday"
     repo_name: str = "FPL-Core-Insights"

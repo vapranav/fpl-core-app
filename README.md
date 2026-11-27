@@ -3,7 +3,7 @@
 Web app built on the [FPL-Core-Insights](https://github.com/olbauday/FPL-Core-Insights) dataset:
 official FPL data + Opta-like per-match stats + ClubElo ratings, all keyed by FPL IDs.
 
-**Stack**: FastAPI · SQLAlchemy · PostgreSQL · APScheduler · Docker
+**Stack**: FastAPI · SQLAlchemy · SQLite · APScheduler · Docker
 
 ## Architecture
 
@@ -16,7 +16,7 @@ official FPL data + Opta-like per-match stats + ClubElo ratings, all keyed by FP
                                    │  └─ scheduler.py 08:05/18:05│
                                    └────────────┬────────────────┘
                                                 ▼
-                                        PostgreSQL (or SQLite dev)
+                                        SQLite (local file or volume)
 ```
 
 - The DB is a **disposable cache** of the repo: every refresh deletes and
@@ -29,7 +29,7 @@ official FPL data + Opta-like per-match stats + ClubElo ratings, all keyed by FP
 ## Run
 
 ```bash
-docker compose up --build        # API on :8000, Postgres 16
+docker compose up --build        # API on :8000, SQLite on a named volume
 ```
 
 Local dev (SQLite, one season, fast):
@@ -82,16 +82,13 @@ fly scale count 1 --yes -a fpl-core-api           # 1 machine is enough
 Live: https://fpl-core-api.fly.dev · Docs: https://fpl-core-api.fly.dev/docs
 
 Cost-minimal setup (~1 machine + 1GB volume ≈ single-digit $/mo):
-- **SQLite on a Fly volume** instead of managed Postgres. The DB is a
-  disposable cache of the GitHub dataset — losing it costs one ~30s
-  re-ingestion. Fly volumes include free scheduled snapshots (5 retained).
+- **SQLite on a Fly volume**. The DB is a disposable cache of the GitHub
+  dataset — losing it costs one ~30s re-ingestion. Fly volumes include free
+  scheduled snapshots (5 retained).
 - `fly.toml` keeps `auto_stop_machines = "off"` + `min_machines_running = 1` —
   the APScheduler runs in-process and must never be stopped.
 - The app VM needs 1GB: the pandas ETL peaks well above the 256MB default.
-- History: unmanaged `fly postgres create` flex clusters proved unstable
-  (fenced 5 min after every start); Managed Postgres worked but wasn't worth
-  the cost for a rebuildable cache. Set a spend limit in the Fly dashboard
-  (org → Billing) as a safety net.
+- Set a spend limit in the Fly dashboard (org → Billing) as a safety net.
 
 ## Data notes (learned the hard way)
 
