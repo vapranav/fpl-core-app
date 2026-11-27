@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { PlayerPhoto } from "@/components/player-photo";
 import { Select } from "@/components/select";
-import { ThemeToggle } from "@/components/theme-toggle";
 import {
   badgeUrl,
   getDifferentials,
@@ -50,21 +49,15 @@ export default async function DifferentialsPage({
   });
 
   return (
-    <main className="mx-auto max-w-6xl p-6">
-      <header className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">
-            Differentials
-          </h1>
-          <p className="text-sm text-muted">
-            Season {data.season} · owned by ≤{data.max_ownership}% · league avg Elo{" "}
-            {data.league_avg_elo}
-          </p>
-          <Link href="/" className="text-sm text-muted hover:underline">
-            ← All players
-          </Link>
-        </div>
-        <ThemeToggle />
+    <main className="mx-auto max-w-6xl p-4 sm:p-6">
+      <header className="mb-6">
+        <h1 className="font-display text-3xl font-bold tracking-tight">
+          Differentials
+        </h1>
+        <p className="text-sm text-muted">
+          Season {data.season} · owned by ≤{data.max_ownership}% · league avg Elo{" "}
+          {data.league_avg_elo}
+        </p>
       </header>
 
       <form method="GET" className="mb-4 flex flex-wrap items-center gap-2">
@@ -95,13 +88,20 @@ export default async function DifferentialsPage({
         <table className="w-full text-sm tabular-nums">
           <thead className="bg-background text-left">
             <tr>
-              {["Player", "Own%", "Form", "PPG", "xGI/90", "Ease", "Next 3 fixtures", "Score"].map(
-                (h) => (
-                  <th key={h} className="px-3 py-2 font-medium">
-                    {h}
-                  </th>
-                ),
-              )}
+              {[
+                ["Player", ""],
+                ["Own%", ""],
+                ["Form", "hidden md:table-cell"],
+                ["PPG", "hidden md:table-cell"],
+                ["xGI/90", "hidden lg:table-cell"],
+                ["Ease", "hidden lg:table-cell"],
+                ["Next 3 fixtures", ""],
+                ["Score", ""],
+              ].map(([h, cls]) => (
+                <th key={h} className={`px-3 py-2 font-medium ${cls}`}>
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -133,11 +133,17 @@ export default async function DifferentialsPage({
                   </div>
                 </td>
                 <td className="px-3 py-1.5 text-right">{fmt(d.ownership)}%</td>
-                <td className="px-3 py-1.5 text-right">{fmt(d.form)}</td>
-                <td className="px-3 py-1.5 text-right">{fmt(d.points_per_game)}</td>
-                <td className="px-3 py-1.5 text-right">{fmt(d.xgi_per_90, 2)}</td>
+                <td className="hidden px-3 py-1.5 text-right md:table-cell">
+                  {fmt(d.form)}
+                </td>
+                <td className="hidden px-3 py-1.5 text-right md:table-cell">
+                  {fmt(d.points_per_game)}
+                </td>
+                <td className="hidden px-3 py-1.5 text-right lg:table-cell">
+                  {fmt(d.xgi_per_90, 2)}
+                </td>
                 <td
-                  className={`px-3 py-1.5 text-right ${
+                  className={`hidden px-3 py-1.5 text-right lg:table-cell ${
                     d.fixture_ease > 0
                       ? "text-green-600 dark:text-green-400"
                       : d.fixture_ease < 0

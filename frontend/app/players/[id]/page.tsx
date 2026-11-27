@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PlayerPhoto } from "@/components/player-photo";
-import { ThemeToggle } from "@/components/theme-toggle";
 import {
   badgeUrl,
   getPlayer,
@@ -132,12 +131,11 @@ export default async function PlayerPage({
   ];
 
   return (
-    <main className="mx-auto max-w-6xl p-6">
-      <header className="mb-6 flex items-start justify-between">
-        <Link href="/" className="text-sm text-muted hover:underline">
+    <main className="mx-auto max-w-6xl p-4 sm:p-6">
+      <header className="mb-6">
+        <Link href="/players" className="text-sm text-muted hover:underline">
           ← All players
         </Link>
-        <ThemeToggle />
       </header>
 
       <section className="mb-6 flex flex-wrap items-center gap-5">

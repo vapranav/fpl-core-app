@@ -1,213 +1,173 @@
 import Image from "next/image";
 import Link from "next/link";
 import { PlayerPhoto } from "@/components/player-photo";
-import { Select, inputClass } from "@/components/select";
-import { ThemeToggle } from "@/components/theme-toggle";
 import {
   badgeUrl,
+  getDifferentials,
+  getGameweeks,
   getPlayers,
-  getTeams,
-  POSITIONS,
-  SORTABLE,
-  type PlayersQuery,
 } from "@/lib/api";
 
-const PAGE_SIZE = 50;
+const FEATURES = [
+  {
+    href: "/players",
+    title: "Players explorer",
+    desc: "Every player, sortable by points, form, price, xG, defensive contribution and more — with photos and club badges.",
+  },
+  {
+    href: "/differentials",
+    title: "Differentials finder",
+    desc: "Low-ownership players in form with soft upcoming fixtures, scored with team Elo. Find the gems the crowd is sleeping on.",
+  },
+  {
+    href: "/compare",
+    title: "Compare players",
+    desc: "Side-by-side season stats and per-gameweek points charts for up to four players.",
+  },
+];
 
-function buildQuery(base: PlayersQuery, over: PlayersQuery): string {
-  const merged: PlayersQuery = { ...base, ...over };
-  const qs = new URLSearchParams();
-  for (const [k, v] of Object.entries(merged)) if (v) qs.set(k, String(v));
-  const s = qs.toString();
-  return s ? `?${s}` : "/";
-}
-
-function fmt(v: number | null, digits = 1): string {
-  return v === null || v === undefined ? "–" : v.toFixed(digits);
-}
-
-export default async function PlayersPage({
-  searchParams,
-}: {
-  searchParams: Promise<PlayersQuery>;
-}) {
-  const sp = await searchParams;
-  const query: PlayersQuery = {
-    position: sp.position,
-    team_code: sp.team_code,
-    search: sp.search,
-    sort: sp.sort ?? "total_points",
-    order: sp.order ?? "desc",
-    limit: String(PAGE_SIZE),
-    offset: sp.offset ?? "0",
-  };
-
-  const [data, teamsData] = await Promise.all([
-    getPlayers(query),
-    getTeams(sp.season),
+export default async function HomePage() {
+  const [gameweeks, formPlayers, differentials] = await Promise.all([
+    getGameweeks(),
+    getPlayers({ sort: "form", order: "desc", limit: "5" }),
+    getDifferentials({ max_ownership: "5" }),
   ]);
-  const teams = [...teamsData.teams].sort((a, b) => a.name.localeCompare(b.name));
-  const offset = Number(query.offset);
-  const page = Math.floor(offset / PAGE_SIZE) + 1;
-  const pages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
+
+  // first unfinished GW: that's the one worth planning for. is_current lags
+  // (it marks the GW still being scored, whose deadline has already passed)
+  const gw = gameweeks.gameweeks.find((g) => !g.finished);
+  const now = new Date();
+  // API stores naive UTC datetimes; without the Z, JS would parse as local
+  const deadlineAt = gw?.deadline_time ? new Date(`${gw.deadline_time}Z`) : null;
+  const inProgress = deadlineAt !== null && now >= deadlineAt;
+  const deadline = deadlineAt?.toLocaleString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
-    <main className="mx-auto max-w-6xl p-6">
-      <header className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">
-            FPL Core
-          </h1>
-          <p className="text-sm text-muted">
-            Season {data.season} · {data.total} players ·{" "}
-            <Link href="/differentials" className="hover:underline">
-              Differentials →
-            </Link>
+    <main className="mx-auto max-w-6xl p-4 sm:p-6">
+      <section className="mb-10 mt-8">
+        <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">
+          FPL Core
+        </h1>
+        <p className="mt-3 max-w-xl text-muted">
+          Fantasy Premier League analytics: official FPL data fused with
+          Opta-like match stats and team Elo ratings, refreshed twice daily.
+        </p>
+        {gw && (
+          <p className="mt-3 inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm">
+            <span className="inline-flex items-center gap-2 whitespace-nowrap">
+              <span
+                className={`inline-block h-2 w-2 rounded-full ${
+                  inProgress ? "bg-green-600 dark:bg-green-400" : "bg-orange-700 dark:bg-orange-500"
+                }`}
+                title={inProgress ? "Gameweek in progress" : "Deadline not reached yet"}
+              />
+              <span className="font-medium">{gw.name}</span>
+            </span>
+            {deadline && (
+              <span className="text-muted">deadline {deadline}</span>
+            )}
+            <span className="text-xs text-muted">
+              {inProgress ? "in progress" : "upcoming"}
+            </span>
           </p>
-        </div>
-        <ThemeToggle />
-      </header>
+        )}
+      </section>
 
-      <form method="GET" className="mb-4 flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          name="search"
-          placeholder="Search player…"
-          defaultValue={query.search}
-          className={inputClass}
-        />
-        <Select name="position" defaultValue={query.position ?? ""}>
-          <option value="">All positions</option>
-          {POSITIONS.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </Select>
-        <Select name="team_code" defaultValue={query.team_code ?? ""}>
-          <option value="">All teams</option>
-          {teams.map((t) => (
-            <option key={t.code} value={t.code}>
-              {t.name}
-            </option>
-          ))}
-        </Select>
-        <input type="hidden" name="sort" value={query.sort} />
-        <input type="hidden" name="order" value={query.order} />
-        <button
-          type="submit"
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white dark:text-neutral-900"
-        >
-          Filter
-        </button>
-        <Link href="/" className="px-2 py-2 text-sm text-muted underline">
-          Reset
-        </Link>
-      </form>
+      <section className="mb-10 grid gap-3 sm:grid-cols-3">
+        {FEATURES.map((f) => (
+          <Link
+            key={f.href}
+            href={f.href}
+            className="group rounded-lg border border-border bg-surface p-5 transition-colors hover:border-accent"
+          >
+            <h2 className="font-display text-lg font-semibold group-hover:text-accent">
+              {f.title}
+            </h2>
+            <p className="mt-1.5 text-sm text-muted">{f.desc}</p>
+          </Link>
+        ))}
+      </section>
 
-      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full text-sm tabular-nums">
-          <thead className="bg-background text-left">
-            <tr>
-              <th className="px-3 py-2 font-medium">Player</th>
-              <th className="px-3 py-2 font-medium">Team</th>
-              <th className="px-3 py-2 font-medium">Pos</th>
-              {SORTABLE.map((c) => {
-                const active = query.sort === c.key;
-                const nextOrder = active && query.order === "desc" ? "asc" : "desc";
-                return (
-                  <th key={c.key} className="px-3 py-2 text-right font-medium">
-                    <Link
-                      href={buildQuery(query, {
-                        sort: c.key,
-                        order: nextOrder,
-                        offset: "0",
-                      })}
-                      className={active ? "font-bold underline" : "text-muted hover:text-foreground hover:underline"}
-                      title={`Sort by ${c.label}`}
-                    >
-                      {c.label}
-                      {active ? (query.order === "desc" ? " ↓" : " ↑") : ""}
-                    </Link>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {data.players.map((p, i) => (
-              <tr
+      <div className="grid gap-8 lg:grid-cols-2">
+        <section>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="font-display text-lg font-semibold">In form</h2>
+            <Link
+              href="/players?sort=form"
+              className="text-sm text-muted hover:underline"
+            >
+              All players →
+            </Link>
+          </div>
+          <div className="overflow-hidden rounded-lg border border-border bg-surface">
+            {formPlayers.players.map((p, i) => (
+              <Link
                 key={p.player_id}
-                className="border-t border-border transition-colors hover:bg-background"
+                href={`/players/${p.player_id}`}
+                className={`flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-background ${
+                  i > 0 ? "border-t border-border" : ""
+                }`}
               >
-                <td className="px-3 py-1.5">
-                  <div className="flex items-center gap-2">
-                    <PlayerPhoto src={p.photo_url} alt={p.web_name} priority={i < 10} />
-                    <Link
-                      href={`/players/${p.player_id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {p.web_name}
-                    </Link>
-                  </div>
-                </td>
-                <td className="px-3 py-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <Image
-                      src={badgeUrl(p.team_code)}
-                      alt={p.team_name}
-                      width={18}
-                      height={18}
-                      sizes="18px"
-                      priority={i < 10}
-                    />
-                    <span>{p.team_name}</span>
-                  </div>
-                </td>
-                <td className="px-3 py-1.5">{p.position.slice(0, 3).toUpperCase()}</td>
-                <td className="px-3 py-1.5 text-right font-semibold">
-                  {fmt(p.stats.total_points, 0)}
-                </td>
-                <td className="px-3 py-1.5 text-right">{fmt(p.stats.form)}</td>
-                <td className="px-3 py-1.5 text-right">£{fmt(p.stats.now_cost)}m</td>
-                <td className="px-3 py-1.5 text-right">{fmt(p.stats.selected_by_percent)}%</td>
-                <td className="px-3 py-1.5 text-right">{fmt(p.stats.expected_goals)}</td>
-                <td className="px-3 py-1.5 text-right">{fmt(p.stats.expected_assists)}</td>
-                <td className="px-3 py-1.5 text-right">{fmt(p.stats.goals_scored, 0)}</td>
-                <td className="px-3 py-1.5 text-right">{fmt(p.stats.assists, 0)}</td>
-                <td className="px-3 py-1.5 text-right">{fmt(p.stats.minutes, 0)}</td>
-                <td className="px-3 py-1.5 text-right">{fmt(p.stats.defensive_contribution, 0)}</td>
-                <td className="px-3 py-1.5 text-right">{fmt(p.stats.ict_index)}</td>
-                <td className="px-3 py-1.5 text-right">{fmt(p.stats.points_per_game)}</td>
-              </tr>
+                <PlayerPhoto src={p.photo_url} alt={p.web_name} size={32} />
+                <span className="font-medium">{p.web_name}</span>
+                <span className="flex items-center gap-1 text-xs text-muted">
+                  <Image
+                    src={badgeUrl(p.team_code)}
+                    alt=""
+                    width={14}
+                    height={14}
+                  />
+                  {p.team_name}
+                </span>
+                <span className="ml-auto text-sm tabular-nums text-muted">
+                  form <span className="font-semibold text-foreground">{p.stats.form?.toFixed(1)}</span>
+                </span>
+              </Link>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </section>
 
-      <nav className="mt-4 flex items-center justify-between text-sm">
-        <span className="text-muted">
-          Page {page} of {pages}
-        </span>
-        <div className="flex gap-2">
-          {page > 1 && (
+        <section>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="font-display text-lg font-semibold">
+              Top differentials
+            </h2>
             <Link
-              href={buildQuery(query, { offset: String(offset - PAGE_SIZE) })}
-              className="rounded-md border border-border bg-surface px-3 py-1.5"
+              href="/differentials"
+              className="text-sm text-muted hover:underline"
             >
-              ← Prev
+              All differentials →
             </Link>
-          )}
-          {page < pages && (
-            <Link
-              href={buildQuery(query, { offset: String(offset + PAGE_SIZE) })}
-              className="rounded-md border border-border bg-surface px-3 py-1.5"
-            >
-              Next →
-            </Link>
-          )}
-        </div>
-      </nav>
+          </div>
+          <div className="overflow-hidden rounded-lg border border-border bg-surface">
+            {differentials.differentials.slice(0, 5).map((d, i) => (
+              <Link
+                key={d.player_id}
+                href={`/players/${d.player_id}`}
+                className={`flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-background ${
+                  i > 0 ? "border-t border-border" : ""
+                }`}
+              >
+                <PlayerPhoto src={d.photo_url} alt={d.web_name} size={32} />
+                <span className="font-medium">{d.web_name}</span>
+                <span className="text-xs text-muted">{d.team_name}</span>
+                <span className="ml-auto text-sm tabular-nums text-muted">
+                  {d.ownership?.toFixed(1)}% own · score{" "}
+                  <span className="font-semibold text-accent">
+                    {d.score.toFixed(1)}
+                  </span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
