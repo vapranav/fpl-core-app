@@ -102,11 +102,11 @@ def test_player_matches_joined(client):
 
 def test_matches_filters(client):
     data = client.get("/api/matches", params={"season": "2099-2000"}).json()
-    assert data["total"] == 3
+    assert data["total"] == 4
     assert client.get("/api/matches", params={"season": "2099-2000", "gw": 1}).json()["total"] == 1
     assert (
         client.get("/api/matches", params={"season": "2099-2000", "team_code": 10}).json()["total"]
-        == 3
+        == 4
     )
     # legacy integer match id round-trips as a string
     legacy = client.get("/api/matches", params={"season": "2098-2099"}).json()
@@ -114,13 +114,19 @@ def test_matches_filters(client):
 
 
 def test_matches_finished_filter(client):
-    # GW2 fixture is unfinished; GW1 is finished
+    # one dedicated unfinished row (gw3up); the rest are finished
     done = client.get("/api/matches", params={"season": "2099-2000", "finished": "true"}).json()
-    assert [m["match_id"] for m in done["matches"]] == ["99-00-prem-alpha-fc-vs-beta-united"]
+    assert [m["match_id"] for m in done["matches"]] == [
+        "99-00-prem-alpha-fc-vs-beta-united",
+        "99-00-prem-beta-united-vs-alpha-fc",
+        "99-00-champions-league-alpha-fc-vs-gamma-xi",
+    ]
     upcoming = client.get(
         "/api/matches", params={"season": "2099-2000", "finished": "false"}
     ).json()
-    assert [m["match_id"] for m in upcoming["matches"]] == ["99-00-prem-beta-united-vs-alpha-fc"]
+    assert [m["match_id"] for m in upcoming["matches"]] == [
+        "99-00-prem-alpha-fc-vs-beta-united-gw3up"
+    ]
 
 
 def test_match_timeline_happy_path(client):
