@@ -12,12 +12,15 @@ from .models import (
     Gameweek,
     IngestionRun,
     Match,
+    Momentum,
     Player,
     PlayerGameweekStats,
     PlayerMatchStats,
     PlayerStats,
     PlayerTeamHistory,
+    Shot,
     Team,
+    XgByMinute,
 )
 from .schemas import player_photo_url, team_badge_url
 
@@ -422,6 +425,45 @@ def matches(
     total = db.scalar(select(func.count()).select_from(q.subquery()))
     rows = db.scalars(q.limit(limit).offset(offset)).all()
     return {"season": season, "total": total, "matches": [_row(m) for m in rows]}
+
+
+@api.get("/matches/{match_id}/timeline")
+def match_timeline(match_id: str, season: str | None = None, db: Session = Depends(get_db)):
+    """One match plus its timeline data (shots, momentum, xG by minute).
+
+    Timeline files exist only for some GWs/matches -> empty arrays when absent.
+    """
+    season = _season(db, season)
+    m = db.get(Match, (season, match_id))
+    if m is None:
+        raise HTTPException(404, "match not found")
+    team_names = dict(db.execute(select(Team.code, Team.name).where(Team.season == season)).all())
+    shots = db.scalars(
+        select(Shot)
+        .where(Shot.season == season, Shot.match_id == match_id)
+        .order_by(Shot.minute, Shot.shot_index)
+    ).all()
+    momentum = db.scalars(
+        select(Momentum)
+        .where(Momentum.season == season, Momentum.match_id == match_id)
+        .order_by(Momentum.minute)
+    ).all()
+    xg = db.scalars(
+        select(XgByMinute)
+        .where(XgByMinute.season == season, XgByMinute.match_id == match_id)
+        .order_by(XgByMinute.minute)
+    ).all()
+    return {
+        "season": season,
+        "match": {
+            **_row(m),
+            "home_team_name": team_names.get(m.home_team),
+            "away_team_name": team_names.get(m.away_team),
+        },
+        "shots": [_row(s) for s in shots],
+        "momentum": [_row(r) for r in momentum],
+        "xg_by_minute": [_row(r) for r in xg],
+    }
 
 
 # ---------------------------------------------------------------------------

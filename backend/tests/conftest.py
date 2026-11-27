@@ -86,6 +86,31 @@ FILES = {
         "2,Jane,Playmaker,Playmaker,3,5,0,90\n"
         "3,Bob,Wall,Wall,0,4,0,90\n"
     ),
+    # match timeline files exist only for GW1; the GW2 match has none, which
+    # exercises the empty-timeline path
+    "data/2099-2000/By Gameweek/GW1/shots.csv": (
+        "match_id,shot_index,minute,added_time,is_home,player_id,player_name,"
+        "outcome,situation,body_part,xg,xgot,start_x,start_y,"
+        "goal_mouth_y,goal_mouth_z,goal_mouth_location\n"
+        "99-00-prem-alpha-fc-vs-beta-united,1,12,,True,1,Striker,goal,regular,right-foot,"
+        "0.45,0.6,8.0,50.0,52.0,0.5,low-centre\n"
+        "99-00-prem-alpha-fc-vs-beta-united,2,34,,False,3,Wall,save,corner,head,"
+        "0.12,0.2,5.0,40.0,48.0,1.0,low-centre\n"
+        "99-00-prem-alpha-fc-vs-beta-united,3,45,2,True,,,miss,set-piece,left-foot,"
+        "0.08,,12.0,55.0,,,\n"
+    ),
+    "data/2099-2000/By Gameweek/GW1/momentum.csv": (
+        "match_id,minute,value\n"
+        "99-00-prem-alpha-fc-vs-beta-united,1.0,25\n"
+        "99-00-prem-alpha-fc-vs-beta-united,2.0,-40\n"
+        "99-00-prem-alpha-fc-vs-beta-united,3.0,10\n"
+    ),
+    "data/2099-2000/By Gameweek/GW1/xg_by_minute.csv": (
+        "match_id,minute,home_xg,away_xg,home_cumulative_xg,away_cumulative_xg\n"
+        "99-00-prem-alpha-fc-vs-beta-united,1,0.02,0.0,0.02,0.0\n"
+        "99-00-prem-alpha-fc-vs-beta-united,2,0.01,0.15,0.03,0.15\n"
+        "99-00-prem-alpha-fc-vs-beta-united,3,0.45,0.0,0.48,0.15\n"
+    ),
     # full-season PL schedule lives under By Tournament (primary fixture
     # source); the UCL row tests that non-prem fixtures are excluded
     "data/2099-2000/By Tournament/Premier League/GW2/fixtures.csv": (

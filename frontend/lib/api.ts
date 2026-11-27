@@ -119,12 +119,13 @@ export interface MatchInfo {
   match_id: string;
   gameweek: number | null;
   kickoff_time: string | null;
-  home_team: number;
-  away_team: number;
+  home_team: number | null;
+  away_team: number | null;
   home_score: number | null;
   away_score: number | null;
   home_team_elo: number | null;
   away_team_elo: number | null;
+  finished: boolean | null;
 }
 
 export interface PlayerMatchRow {
@@ -162,6 +163,84 @@ export function getPlayerMatches(
   season?: string,
 ): Promise<{ matches: PlayerMatchRow[] }> {
   return get(`/api/players/${id}/matches${season ? `?season=${season}` : ""}`);
+}
+
+// ---- matches ---------------------------------------------------------------
+
+export interface MatchesQuery {
+  season?: string;
+  gw?: string;
+  team_code?: string;
+  limit?: string;
+  offset?: string;
+}
+
+export function getMatches(
+  q: MatchesQuery,
+): Promise<{ season: string; total: number; matches: MatchInfo[] }> {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) if (v) qs.set(k, v);
+  return get(`/api/matches?${qs.toString()}`);
+}
+
+// ---- match timeline --------------------------------------------------------
+
+export interface ShotRow {
+  match_id: string;
+  shot_index: number;
+  gw: number | null;
+  minute: number | null;
+  added_time: number | null;
+  is_home: boolean | null;
+  player_id: number | null;
+  player_name: string | null;
+  outcome: string | null;
+  situation: string | null;
+  body_part: string | null;
+  xg: number | null;
+  xgot: number | null;
+  start_x: number | null;
+  start_y: number | null;
+  goal_mouth_y: number | null;
+  goal_mouth_z: number | null;
+  goal_mouth_location: string | null;
+}
+
+export interface MomentumPoint {
+  match_id: string;
+  gw: number | null;
+  minute: number;
+  value: number | null;
+}
+
+export interface XgMinutePoint {
+  match_id: string;
+  gw: number | null;
+  minute: number;
+  home_xg: number | null;
+  away_xg: number | null;
+  home_cumulative_xg: number | null;
+  away_cumulative_xg: number | null;
+}
+
+export interface MatchTimeline {
+  season: string;
+  match: MatchInfo & {
+    home_team_name: string | null;
+    away_team_name: string | null;
+  };
+  shots: ShotRow[];
+  momentum: MomentumPoint[];
+  xg_by_minute: XgMinutePoint[];
+}
+
+export function getMatchTimeline(
+  matchId: string,
+  season?: string,
+): Promise<MatchTimeline> {
+  return get(
+    `/api/matches/${encodeURIComponent(matchId)}/timeline${season ? `?season=${season}` : ""}`,
+  );
 }
 
 // ---- differentials ---------------------------------------------------------

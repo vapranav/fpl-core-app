@@ -6,7 +6,16 @@ from sqlalchemy import func, select
 
 from app import etl
 from app.db import SessionLocal
-from app.models import Match, Player, PlayerMatchStats, PlayerStats, Team
+from app.models import (
+    Match,
+    Momentum,
+    Player,
+    PlayerMatchStats,
+    PlayerStats,
+    Shot,
+    Team,
+    XgByMinute,
+)
 
 
 def _count(model, season=None):
@@ -37,6 +46,25 @@ def test_refresh_loads_both_layouts(mock_source, clean_db):
 
     assert _count(Fixture, "2099-2000") == 5
     assert _count(Fixture, "2098-2099") == 0
+
+
+def test_timeline_files_loaded(mock_source, clean_db):
+    etl.refresh(force=True)
+    # GW1 carries timeline files; GW2 has none (skipped gracefully)
+    assert _count(Shot, "2099-2000") == 3
+    assert _count(Momentum, "2099-2000") == 3
+    assert _count(XgByMinute, "2099-2000") == 3
+    with SessionLocal() as db:
+        shot = db.get(Shot, ("2099-2000", "99-00-prem-alpha-fc-vs-beta-united", 1))
+        assert shot.gw == 1
+        assert shot.is_home is True
+        assert shot.outcome == "goal"
+        assert shot.xg == 0.45
+        # missing player_id/xgot -> NULL; added_time coerced to float
+        empty = db.get(Shot, ("2099-2000", "99-00-prem-alpha-fc-vs-beta-united", 3))
+        assert empty.player_id is None
+        assert empty.xgot is None
+        assert empty.added_time == 2.0
 
 
 def test_duplicate_pk_keeps_last(mock_source, clean_db):
