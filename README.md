@@ -72,10 +72,9 @@ Interactive docs: http://localhost:8000/docs
 
 ```bash
 fly apps create fpl-core-api
-fly postgres create --name fpl-core-db --region iad --initial-cluster-size 1 \
-  --vm-size shared-cpu-1x --volume-size 1
-fly postgres attach fpl-core-db -a fpl-core-api   # sets DATABASE_URL secret
-fly secrets set ADMIN_TOKEN=<random> -a fpl-core-api
+fly mpg create --name fpl-core-mpg --region iad --plan Basic --volume-size 10
+fly secrets set DATABASE_URL="<mpg connection string>" ADMIN_TOKEN=<random> \
+  -a fpl-core-api
 cd backend && fly deploy -a fpl-core-api
 fly scale count 1 --yes -a fpl-core-api           # 1 machine is enough
 ```
@@ -83,11 +82,13 @@ fly scale count 1 --yes -a fpl-core-api           # 1 machine is enough
 Live: https://fpl-core-api.fly.dev · Docs: https://fpl-core-api.fly.dev/docs
 
 Notes:
+- Use **Managed Postgres (`fly mpg`)**, not the unmanaged `fly postgres create`
+  flex clusters: a single-node flex cluster was repeatedly fenced by its own
+  cluster manager (stopped exactly 5 min after every start,
+  `requested_stop=true`), taking the API down with it.
 - `fly.toml` keeps `auto_stop_machines = "off"` + `min_machines_running = 1` —
   the APScheduler runs in-process and must never be stopped.
-- Fly Postgres defaults to 256MB RAM, which OOM'd during the initial bulk
-  ingest; it was bumped to 512MB
-  (`fly machine update <id> -a fpl-core-db --vm-memory 512`).
+- The app VM needs 1GB: the pandas ETL peaks well above the 256MB default.
 
 ## Data notes (learned the hard way)
 
