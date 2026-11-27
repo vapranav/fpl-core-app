@@ -287,7 +287,11 @@ export default async function PlayerPage({
                       </span>
                     </td>
                     <td className="px-3 py-1.5">
-                      <span className="inline-flex items-center gap-1.5">
+                      <Link
+                        href={`/matches/${encodeURIComponent(row.match_id)}`}
+                        className="inline-flex items-center gap-1.5 hover:underline"
+                        title="Open match timeline"
+                      >
                         {opp !== null ? (
                           <Image
                             src={badgeUrl(opp)}
@@ -303,7 +307,7 @@ export default async function PlayerPage({
                         <span className="text-muted text-xs">
                           ({home ? "H" : "A"})
                         </span>
-                      </span>
+                      </Link>
                     </td>
                     <td className="px-3 py-1.5">
                       <span

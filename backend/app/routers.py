@@ -622,6 +622,19 @@ def match_timeline(match_id: str, season: str | None = None, db: Session = Depen
         .where(Shot.season == season, Shot.match_id == match_id)
         .order_by(Shot.minute, Shot.shot_index)
     ).all()
+    # shots.csv often ships empty player_name; resolve from the players table
+    player_ids = {int(s.player_id) for s in shots if s.player_id is not None}
+    player_names = (
+        dict(
+            db.execute(
+                select(Player.player_id, Player.web_name).where(
+                    Player.season == season, Player.player_id.in_(player_ids)
+                )
+            ).all()
+        )
+        if player_ids
+        else {}
+    )
     momentum = db.scalars(
         select(Momentum)
         .where(Momentum.season == season, Momentum.match_id == match_id)
@@ -639,7 +652,14 @@ def match_timeline(match_id: str, season: str | None = None, db: Session = Depen
             "home_team_name": team_names.get(m.home_team),
             "away_team_name": team_names.get(m.away_team),
         },
-        "shots": [_row(s) for s in shots],
+        "shots": [
+            {
+                **_row(s),
+                "player_name": s.player_name
+                or (player_names.get(int(s.player_id)) if s.player_id is not None else None),
+            }
+            for s in shots
+        ],
         "momentum": [_row(r) for r in momentum],
         "xg_by_minute": [_row(r) for r in xg],
     }

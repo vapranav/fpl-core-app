@@ -101,7 +101,7 @@ FILES = {
         "goal_mouth_y,goal_mouth_z,goal_mouth_location\n"
         "99-00-prem-alpha-fc-vs-beta-united,1,12,,True,1,Striker,goal,regular,right-foot,"
         "0.45,0.6,8.0,50.0,52.0,0.5,low-centre\n"
-        "99-00-prem-alpha-fc-vs-beta-united,2,34,,False,3,Wall,save,corner,head,"
+        "99-00-prem-alpha-fc-vs-beta-united,2,34,,False,3,,save,corner,head,"
         "0.12,0.2,5.0,40.0,48.0,1.0,low-centre\n"
         "99-00-prem-alpha-fc-vs-beta-united,3,45,2,True,,,miss,set-piece,left-foot,"
         "0.08,,12.0,55.0,,,\n"
