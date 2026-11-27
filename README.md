@@ -72,8 +72,8 @@ Interactive docs: http://localhost:8000/docs
 
 ```bash
 fly apps create fpl-core-api
-fly mpg create --name fpl-core-mpg --region iad --plan Basic --volume-size 10
-fly secrets set DATABASE_URL="<mpg connection string>" ADMIN_TOKEN=<random> \
+fly volumes create fpl_data --size 1 --region iad -a fpl-core-api
+fly secrets set DATABASE_URL="sqlite:////data/fpl.db" ADMIN_TOKEN=<random> \
   -a fpl-core-api
 cd backend && fly deploy -a fpl-core-api
 fly scale count 1 --yes -a fpl-core-api           # 1 machine is enough
@@ -81,14 +81,17 @@ fly scale count 1 --yes -a fpl-core-api           # 1 machine is enough
 
 Live: https://fpl-core-api.fly.dev · Docs: https://fpl-core-api.fly.dev/docs
 
-Notes:
-- Use **Managed Postgres (`fly mpg`)**, not the unmanaged `fly postgres create`
-  flex clusters: a single-node flex cluster was repeatedly fenced by its own
-  cluster manager (stopped exactly 5 min after every start,
-  `requested_stop=true`), taking the API down with it.
+Cost-minimal setup (~1 machine + 1GB volume ≈ single-digit $/mo):
+- **SQLite on a Fly volume** instead of managed Postgres. The DB is a
+  disposable cache of the GitHub dataset — losing it costs one ~30s
+  re-ingestion. Fly volumes include free scheduled snapshots (5 retained).
 - `fly.toml` keeps `auto_stop_machines = "off"` + `min_machines_running = 1` —
   the APScheduler runs in-process and must never be stopped.
 - The app VM needs 1GB: the pandas ETL peaks well above the 256MB default.
+- History: unmanaged `fly postgres create` flex clusters proved unstable
+  (fenced 5 min after every start); Managed Postgres worked but wasn't worth
+  the cost for a rebuildable cache. Set a spend limit in the Fly dashboard
+  (org → Billing) as a safety net.
 
 ## Data notes (learned the hard way)
 

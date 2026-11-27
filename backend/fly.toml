@@ -29,6 +29,10 @@ primary_region = "iad"
     timeout = "5s"
     grace_period = "30s"
 
+[mounts]
+  source = "fpl_data"
+  destination = "/data"
+
 [[vm]]
   size = "shared-cpu-1x"
   memory = "1gb"  # pandas ETL peaks well above 256MB
