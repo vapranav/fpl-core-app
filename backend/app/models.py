@@ -316,6 +316,70 @@ class Fixture(Base):
 
 
 # ---------------------------------------------------------------------------
+# Match timeline files (By Gameweek/GW{n}/{shots,momentum,xg_by_minute}.csv)
+# Present only for some GWs; match_id joins to the matches table.
+# ---------------------------------------------------------------------------
+
+SHOT_FLOATS = [
+    "minute",
+    "added_time",
+    "player_id",  # internal dataset id, often missing
+    "xg",
+    "xgot",
+    "start_x",  # distance from the attacked goal line, 0-100 grid
+    "start_y",
+    "goal_mouth_y",
+    "goal_mouth_z",
+]
+
+Shot = _make_model(
+    "Shot",
+    "shots",
+    {
+        "season": Column(String(9), primary_key=True),
+        "match_id": Column(String(150), primary_key=True),
+        "shot_index": Column(Integer, primary_key=True),
+        "gw": Column(Integer, index=True),
+        "is_home": Column(Boolean),
+        "player_name": Column(String(150)),
+        "outcome": Column(String(50)),
+        "situation": Column(String(50)),
+        "body_part": Column(String(50)),
+        "goal_mouth_location": Column(String(50)),
+        **_float_cols(SHOT_FLOATS),
+        "__table_args__": (Index("ix_shots_season_match", "season", "match_id"),),
+    },
+)
+
+Momentum = _make_model(
+    "Momentum",
+    "momentum",
+    {
+        "season": Column(String(9), primary_key=True),
+        "match_id": Column(String(150), primary_key=True),
+        "minute": Column(Float, primary_key=True),  # CSV carries floats (1.0)
+        "gw": Column(Integer, index=True),
+        "value": Column(Float),  # positive = home dominance, negative = away
+    },
+)
+
+XgByMinute = _make_model(
+    "XgByMinute",
+    "xg_by_minute",
+    {
+        "season": Column(String(9), primary_key=True),
+        "match_id": Column(String(150), primary_key=True),
+        "minute": Column(Float, primary_key=True),
+        "gw": Column(Integer, index=True),
+        "home_xg": Column(Float),
+        "away_xg": Column(Float),
+        "home_cumulative_xg": Column(Float),
+        "away_cumulative_xg": Column(Float),
+    },
+)
+
+
+# ---------------------------------------------------------------------------
 # Gameweek summaries + ingestion bookkeeping
 # ---------------------------------------------------------------------------
 

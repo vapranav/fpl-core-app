@@ -113,6 +113,63 @@ def test_matches_filters(client):
     assert legacy["matches"][0]["match_id"] == "12345"
 
 
+def test_matches_finished_filter(client):
+    # GW2 fixture is unfinished; GW1 is finished
+    done = client.get("/api/matches", params={"season": "2099-2000", "finished": "true"}).json()
+    assert [m["match_id"] for m in done["matches"]] == ["99-00-prem-alpha-fc-vs-beta-united"]
+    upcoming = client.get(
+        "/api/matches", params={"season": "2099-2000", "finished": "false"}
+    ).json()
+    assert [m["match_id"] for m in upcoming["matches"]] == ["99-00-prem-beta-united-vs-alpha-fc"]
+
+
+def test_match_timeline_happy_path(client):
+    data = client.get(
+        "/api/matches/99-00-prem-alpha-fc-vs-beta-united/timeline",
+        params={"season": "2099-2000"},
+    ).json()
+    m = data["match"]
+    assert m["home_team"] == 10
+    assert m["home_team_name"] == "Alpha FC"
+    assert m["away_team_name"] == "Beta United"
+    assert m["home_score"] == 2
+    assert m["gameweek"] == 1
+
+    # shots ordered by minute
+    assert [s["shot_index"] for s in data["shots"]] == [1, 2, 3]
+    goal = data["shots"][0]
+    assert goal["outcome"] == "goal"
+    assert goal["is_home"] is True
+    assert goal["player_name"] == "Striker"
+    assert goal["xg"] == 0.45
+    assert data["shots"][2]["player_id"] is None  # empty CSV cell -> null
+
+    assert [r["minute"] for r in data["momentum"]] == [1.0, 2.0, 3.0]
+    assert data["momentum"][1]["value"] == -40
+
+    xg = data["xg_by_minute"]
+    assert [r["minute"] for r in xg] == [1.0, 2.0, 3.0]
+    assert xg[-1]["home_cumulative_xg"] == 0.48
+    assert xg[-1]["away_cumulative_xg"] == 0.15
+
+
+def test_match_timeline_empty_when_files_missing(client):
+    # the GW2 match exists but has no timeline files -> empty arrays, not 404
+    data = client.get(
+        "/api/matches/99-00-prem-beta-united-vs-alpha-fc/timeline",
+        params={"season": "2099-2000"},
+    ).json()
+    assert data["match"]["match_id"] == "99-00-prem-beta-united-vs-alpha-fc"
+    assert data["shots"] == []
+    assert data["momentum"] == []
+    assert data["xg_by_minute"] == []
+
+
+def test_match_timeline_unknown_match_404(client):
+    r = client.get("/api/matches/no-such-match/timeline", params={"season": "2099-2000"})
+    assert r.status_code == 404
+
+
 def test_teams_have_badge_urls(client):
     data = client.get("/api/teams").json()
     assert data["teams"][0]["badge_url"].endswith(".png")

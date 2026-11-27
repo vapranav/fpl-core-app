@@ -59,6 +59,7 @@ BOOL_COLS = {
     models.Match.__tablename__: ["finished"],
     models.Fixture.__tablename__: ["finished"],
     models.Gameweek.__tablename__: ["finished", "is_previous", "is_current", "is_next"],
+    models.Shot.__tablename__: ["is_home"],
 }
 
 
@@ -152,6 +153,9 @@ _DELETE_ORDER = [
     models.PlayerTeamHistory,
     models.Player,
     models.Team,
+    models.Shot,
+    models.Momentum,
+    models.XgByMinute,
     models.Match,
     models.Fixture,
     models.Gameweek,
@@ -236,12 +240,16 @@ def _load_season(db: Session, root: Path, season: str) -> int:
         df = _coerce(df, models.Fixture)
         rows += _replace_season(db, models.Fixture, season, df)
 
-    # per-GW player stats: GW-scoped -> load every GW folder
+    # per-GW files: GW-scoped -> load every GW folder; match timeline files
+    # (shots/momentum/xg_by_minute) exist only for some GWs -> skip gracefully
     for d in gw_dirs:
         gw = _gw_of(d)
         for fname, model in (
             ("playermatchstats.csv", models.PlayerMatchStats),
             ("player_gameweek_stats.csv", models.PlayerGameweekStats),
+            ("shots.csv", models.Shot),
+            ("momentum.csv", models.Momentum),
+            ("xg_by_minute.csv", models.XgByMinute),
         ):
             path = d / fname
             if path.exists():
