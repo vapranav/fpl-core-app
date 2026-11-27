@@ -159,6 +159,33 @@ def test_differentials_fixture_run(client):
     assert striker["fixture_ease"] > 0
 
 
+def test_search_matches_web_name(client):
+    data = client.get("/api/search/players", params={"q": "strik"}).json()
+    assert [r["web_name"] for r in data["results"]] == ["Striker"]
+    assert data["results"][0]["team_name"] == "Alpha FC"
+    assert data["results"][0]["total_points"] == 99
+
+
+def test_search_matches_first_and_second_name(client):
+    # second name only — web_name ("Playmaker") does not contain it
+    data = client.get("/api/search/players", params={"q": "laymak"}).json()
+    assert [r["web_name"] for r in data["results"]] == ["Playmaker"]
+    # first name
+    data = client.get("/api/search/players", params={"q": "bob"}).json()
+    assert [r["web_name"] for r in data["results"]] == ["Wall"]
+
+
+def test_search_minimum_length(client):
+    assert client.get("/api/search/players", params={"q": "a"}).json() == {"results": []}
+    assert client.get("/api/search/players", params={"q": ""}).json() == {"results": []}
+
+
+def test_search_orders_by_points(client):
+    # "er" matches Striker (99 pts) and Playmaker (5) — highest first
+    data = client.get("/api/search/players", params={"q": "er"}).json()
+    assert [r["web_name"] for r in data["results"]] == ["Striker", "Playmaker"]
+
+
 def test_admin_open_when_token_unset(client):
     assert client.get("/api/admin/ingestions").status_code == 200
 
