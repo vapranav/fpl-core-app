@@ -1,10 +1,16 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+
+// hydration-safe mounted flag: server snapshot false, flips to true on
+// hydration and schedules a re-render (same pattern as the theme toggle)
+const subscribe = () => () => {};
+
 /**
  * Renders a timestamp in the USER's timezone.
  * The API stores naive-UTC datetimes, so we pin with Z before parsing.
- * suppressHydrationWarning: the server render shows server-tz text and the
- * browser replaces it on hydration — intentional, avoids a blank flash.
+ * Pre-hydration we render a deterministic UTC string (identical on server
+ * and client, so no mismatch); after mount we swap to the browser's tz.
  */
 export function LocalTime({
   iso,
@@ -15,6 +21,11 @@ export function LocalTime({
   variant?: "datetime" | "short" | "date";
   className?: string;
 }) {
+  const mounted = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
   if (!iso) return <span className={className}>–</span>;
   const src = iso.endsWith("Z") || iso.includes("+") ? iso : `${iso}Z`;
   const d = new Date(src);
@@ -31,8 +42,10 @@ export function LocalTime({
             minute: "2-digit",
           };
   return (
-    <span className={className} suppressHydrationWarning>
-      {d.toLocaleString("en-GB", opts)}
+    <span className={className}>
+      {mounted
+        ? d.toLocaleString("en-GB", opts)
+        : d.toLocaleString("en-GB", { ...opts, timeZone: "UTC" })}
     </span>
   );
 }
