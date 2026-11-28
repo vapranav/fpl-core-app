@@ -6,6 +6,7 @@ import { ThemeToggle } from "./theme-toggle";
 
 const LINKS = [
   { href: "/", label: "Home" },
+  { href: "/my-team", label: "My Team" },
   { href: "/players", label: "Players" },
   { href: "/differentials", label: "Differentials" },
   { href: "/rotation", label: "Rotation" },
