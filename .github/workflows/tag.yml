@@ -1,4 +1,4 @@
-name: Tag and release
+name: Tag
 
 on:
   push:
@@ -15,9 +15,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create next patch tag + release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create next patch tag
         run: |
           git fetch --tags -q
           latest=$(git tag -l 'v[0-9]*' | sort -V | tail -1)
@@ -28,9 +26,3 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "$next"
           git push origin "$next"
-          gh release create "$next" --generate-notes --title "$next"
-
-  deploy:
-    needs: tag
-    uses: ./.github/workflows/deploy.yml
-    secrets: inherit
