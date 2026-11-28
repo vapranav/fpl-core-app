@@ -708,6 +708,67 @@ export function getPriceChanges(): Promise<PriceChanges> {
   return getLive("/api/prices");
 }
 
+// ---- transfer suggestions (official FPL API, live) --------------------------
+
+export interface SuggestionPlayer {
+  id: number;
+  web_name: string;
+  team_code: number;
+  team_short: string;
+  position_short: "GKP" | "DEF" | "MID" | "FWD";
+  now_cost: number; // tenths of £m
+  form: number;
+  status: string;
+  news: string;
+  chance_of_playing: number | null;
+  progress: number;
+  predicted_progress: number | null;
+  likelihood: number;
+  transfers_in_event: number;
+  transfers_out_event: number;
+  fixtures: {
+    event: number;
+    opponent_short: string;
+    is_home: boolean;
+    difficulty: number;
+  }[];
+  avg_fdr: number | null;
+}
+
+export interface SuggestionOption extends SuggestionPlayer {
+  bank_after: number;
+  likely_rise: boolean;
+  priced_out_risk: "rise" | "drop" | "both" | null;
+}
+
+export interface TransferSuggestion {
+  out: SuggestionPlayer & { selling_price: number; likely_drop: boolean };
+  reasons: {
+    kind: "unavailable" | "doubtful" | "selling" | "fixtures" | "form";
+    label: string;
+  }[];
+  budget: number;
+  options: SuggestionOption[];
+}
+
+export interface TransferSuggestions {
+  exact: boolean; // real selling prices + bank (token) vs estimates
+  bank: number;
+  next_event: number | null;
+  next_price_update: string;
+  suggestions: TransferSuggestion[];
+}
+
+export function getTransferSuggestions(
+  entryId: number,
+  token?: string | null,
+): Promise<TransferSuggestions> {
+  return getLive(
+    `/api/manager/${entryId}/transfer-suggestions`,
+    token ? tokenHeader(token) : undefined,
+  );
+}
+
 // ---- fixture difficulty (official FPL API, live) ----------------------------
 
 export interface FdrFixture {

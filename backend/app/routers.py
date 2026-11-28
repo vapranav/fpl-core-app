@@ -52,6 +52,7 @@ from .models import (
 )
 from .prices import build_price_changes
 from .schemas import player_photo_url, team_badge_url
+from .transfers import build_suggestions
 
 api = APIRouter(prefix="/api")
 
@@ -1218,6 +1219,41 @@ def price_changes():
     fetched_at, boot = _upstream(get_bootstrap)
     history = _upstream(get_price_change_history)
     return build_price_changes(fetched_at, boot, history)
+
+
+@api.get("/manager/{entry_id}/transfer-suggestions")
+def transfer_suggestions(entry_id: int, x_fpl_token: str | None = Header(None)):
+    """Squad players worth moving on (can't play, or being sold over fixtures or
+    form) and in-budget replacements close to a price rise. With the manager's
+    FPL token (X-FPL-Token) the budget uses real selling prices and bank;
+    without it, current prices and last gameweek's bank stand in."""
+    if x_fpl_token and x_fpl_token.strip():
+        data = _authed(get_my_team, entry_id, _fpl_token(x_fpl_token))
+        if data is None:
+            raise HTTPException(404, "manager not found")
+        squad = [
+            {
+                "element": p["element"],
+                "purchase_price": p.get("purchase_price"),
+                "selling_price": p.get("selling_price"),
+            }
+            for p in data.get("picks", [])
+        ]
+        bank = (data.get("transfers") or {}).get("bank") or 0
+        exact = True
+    else:
+        entry = _upstream(get_entry, entry_id)
+        if entry is None or "id" not in entry:
+            raise HTTPException(404, "manager not found")
+        gw = entry.get("current_event")
+        picks = _upstream(get_picks, entry_id, gw) if gw else None
+        if picks is None:
+            raise HTTPException(404, "this manager has no squad yet")
+        squad = [{"element": p["element"], "purchase_price": None} for p in picks.get("picks", [])]
+        bank = (picks.get("entry_history") or {}).get("bank") or 0
+        exact = False
+    fetched_at, boot = _upstream(get_bootstrap)
+    return build_suggestions(boot, _upstream(get_fixtures), squad, bank, fetched_at, exact)
 
 
 @api.get("/fdr")
