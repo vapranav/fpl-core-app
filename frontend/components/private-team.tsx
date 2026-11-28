@@ -102,8 +102,8 @@ function TokenForm({
         Selling prices, free transfers and remaining chips are only visible to
         you on FPL. Paste your FPL access token to see them here. The FPL Core
         Chrome extension copies it in one click from a signed-in
-        fantasy.premierleague.com tab, and fills it in here automatically
-        for any team it has a token for.
+        fantasy.premierleague.com tab, and fills it in here automatically for
+        any team it has a token for.
       </p>
       <form
         onSubmit={onSubmit}
