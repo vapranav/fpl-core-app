@@ -41,7 +41,7 @@ jobs:
         working-directory: backend
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: flyctl deploy --remote-only -a "$APP" -c fly.preview.toml
+        run: flyctl deploy --remote-only --ha=false -a "$APP" -c fly.preview.toml
 
       - name: Smoke gate
         env:
