@@ -972,7 +972,7 @@ def league_standings(
 
 def _league_rows(league_id: int, limit: int) -> list[dict]:
     """Top `limit` members of a league (first standings page)."""
-    data = get_league_standings(league_id, 1)
+    data = _upstream(get_league_standings, league_id, 1)
     if data is None or "standings" not in data:
         raise HTTPException(404, "league not found")
     return data["standings"].get("results", [])[:limit]
@@ -993,7 +993,7 @@ def league_history(
     for entry_id in dict.fromkeys(include):
         if entry_id in seen:
             continue
-        entry = get_entry(entry_id)
+        entry = _upstream(get_entry, entry_id)
         if entry is None:
             continue
         rows.append(
@@ -1022,13 +1022,13 @@ def league_overlap(
 ):
     """How a manager's squad overlaps with each rival's for a gameweek."""
     if gw is None:
-        me = get_entry(entry)
+        me = _upstream(get_entry, entry)
         if me is None:
             raise HTTPException(404, "manager not found")
         gw = me.get("current_event")
         if not gw:
             raise HTTPException(404, "the season hasn't started yet")
-    my_picks = get_picks(entry, gw)
+    my_picks = _upstream(get_picks, entry, gw)
     if my_picks is None:
         raise HTTPException(404, f"no picks for GW{gw} yet")
     rows = [r for r in _league_rows(league_id, limit) if r["entry"] != entry]

@@ -20,7 +20,17 @@ import {
 /** Result of one request, tagged with the key it was made for. */
 type Loaded<T> =
   | { key: string; ok: true; data: T }
-  | { key: string; ok: false; status: number | null };
+  | { key: string; ok: false; status: number | null; detail: string | null };
+
+/**
+ * FastAPI's default 404 body is {"detail": "Not Found"}: the route itself is
+ * missing, i.e. this frontend is talking to an API without these endpoints.
+ */
+const missingEndpoint = (r: { status: number | null; detail: string | null }) =>
+  r.status === 404 && r.detail === "Not Found";
+
+const OLD_API =
+  "This API doesn't have the league features yet (it's running an older version).";
 
 function useLoad<T>(key: string | null, load: () => Promise<T>) {
   const [res, setRes] = useState<Loaded<T> | null>(null);
@@ -37,6 +47,7 @@ function useLoad<T>(key: string | null, load: () => Promise<T>) {
             key,
             ok: false,
             status: err instanceof ApiRequestError ? err.status : null,
+            detail: err instanceof ApiRequestError ? err.detail : null,
           });
       });
     return () => {
@@ -122,7 +133,9 @@ function SeasonComparison({
   else if (!res.ok)
     body = (
       <p className={errorBox}>
-        Could not load season histories from FPL — try again shortly.
+        {missingEndpoint(res)
+          ? OLD_API
+          : "Could not load season histories from FPL — try again shortly."}
       </p>
     );
   else if (res.data.members.every((m) => m.series.length === 0))
@@ -407,16 +420,23 @@ function SquadOverlap({ leagueId, me }: { leagueId: number; me: number }) {
     body = <p className={muted}>The season hasn&apos;t started yet.</p>;
   else if (!overlap) body = <p className={muted}>Comparing squads…</p>;
   else if (!overlap.ok)
-    body =
-      overlap.status === 404 ? (
-        <p className={muted}>
-          Picks for GW{gw} aren&apos;t available until the deadline passes.
-        </p>
-      ) : (
-        <p className={errorBox}>
-          Could not compare squads — FPL may be busy, try again shortly.
-        </p>
-      );
+    body = missingEndpoint(overlap) ? (
+      <p className={errorBox}>{OLD_API}</p>
+    ) : overlap.status === 404 && overlap.detail?.startsWith("no picks") ? (
+      <p className={muted}>
+        Picks for GW{gw} aren&apos;t available until the deadline passes.
+      </p>
+    ) : overlap.status === 404 ? (
+      <p className={muted}>
+        {overlap.detail
+          ? `${overlap.detail[0].toUpperCase()}${overlap.detail.slice(1)}.`
+          : "Not found."}
+      </p>
+    ) : (
+      <p className={errorBox}>
+        Could not compare squads — FPL may be busy, try again shortly.
+      </p>
+    );
   else if (overlap.data.members.length === 0)
     body = (
       <p className={muted}>No other squads available for this gameweek.</p>

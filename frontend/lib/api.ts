@@ -408,11 +408,14 @@ export const SORTABLE: { key: string; label: string; hide?: string }[] = [
 
 export class ApiRequestError extends Error {
   readonly status: number;
+  /** FastAPI's `detail` message, when the response had one */
+  readonly detail: string | null;
 
-  constructor(status: number, path: string) {
+  constructor(status: number, path: string, detail: string | null = null) {
     super(`API ${status} for ${path}`);
     this.name = "ApiRequestError";
     this.status = status;
+    this.detail = detail;
   }
 }
 
@@ -420,7 +423,11 @@ export class ApiRequestError extends Error {
 // client-side, where the `next` fetch options do not apply anyway
 async function getLive<T>(path: string): Promise<T> {
   const res = await fetch(`${API_URL}${path}`);
-  if (!res.ok) throw new ApiRequestError(res.status, path);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const detail = typeof body?.detail === "string" ? body.detail : null;
+    throw new ApiRequestError(res.status, path, detail);
+  }
   return res.json();
 }
 

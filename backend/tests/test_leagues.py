@@ -6,6 +6,7 @@ The official API is mocked; player names come from the fixture repo
 
 from unittest import mock
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -211,3 +212,14 @@ def test_overlap_errors(client):
 def test_manager_name_falls_back_to_first_and_last(client):
     # the real FPL entry payload has no player_name field
     assert client.get("/api/manager/444").json()["manager_name"] == "Di Ng"
+
+
+def test_upstream_failures_are_502_not_500(client):
+    # FPL timing out on the league itself, or on the manager's own picks
+    with mock.patch("app.routers.get_league_standings", side_effect=httpx.ReadTimeout("slow")):
+        assert client.get("/api/leagues/42/overlap?entry=111&gw=2").status_code == 502
+        assert client.get("/api/leagues/42/history").status_code == 502
+    with mock.patch("app.routers.get_picks", side_effect=httpx.ConnectError("down")):
+        r = client.get("/api/leagues/42/overlap?entry=111&gw=2")
+    assert r.status_code == 502
+    assert "FPL API request failed" in r.json()["detail"]

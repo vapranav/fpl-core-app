@@ -11,6 +11,9 @@ import httpx
 
 BASE = "https://fantasy.premierleague.com/api"
 TIMEOUT = 15.0
+RETRY_DELAY = 0.5  # seconds before the one retry of a transient failure
+# FPL rate-limits bursts and has the odd 5xx/timeout, especially to a cold host
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 # path -> (monotonic fetch time, wall-clock fetch time, payload)
 _cache: dict[str, tuple[float, datetime, object]] = {}
@@ -22,7 +25,7 @@ def _cached_fetch(path: str, ttl: int) -> tuple[datetime, object] | None:
     hit = _cache.get(path)
     if hit and now - hit[0] < ttl:
         return hit[1], hit[2]
-    r = httpx.get(f"{BASE}{path}", timeout=TIMEOUT)
+    r = _get_with_retry(f"{BASE}{path}")
     if r.status_code == 404:
         return None
     r.raise_for_status()
@@ -30,6 +33,18 @@ def _cached_fetch(path: str, ttl: int) -> tuple[datetime, object] | None:
     data = r.json()
     _cache[path] = (now, fetched_at, data)
     return fetched_at, data
+
+
+def _get_with_retry(url: str) -> httpx.Response:
+    """GET, retrying once on a timeout/connection error or a transient status."""
+    try:
+        r = httpx.get(url, timeout=TIMEOUT)
+        if r.status_code not in _RETRYABLE_STATUS:
+            return r
+    except httpx.TransportError:
+        pass
+    time.sleep(RETRY_DELAY)
+    return httpx.get(url, timeout=TIMEOUT)
 
 
 def _cached_get(path: str, ttl: int):
