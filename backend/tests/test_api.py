@@ -342,6 +342,22 @@ def test_rotation_risk_window_excludes_old_matches(client):
     assert len(data["players"]) == 2
 
 
+def test_cors_origins(client):
+    allowed = [
+        "https://fpl-core-app.vercel.app",
+        "http://localhost:3000",
+        # git-integration preview
+        "https://fpl-core-app-git-feat-x-vapranavs-projects.vercel.app",
+        # CLI preview (our PR pipeline)
+        "https://fpl-core-gg8sulu3-vapranavs-projects.vercel.app",
+    ]
+    for origin in allowed:
+        r = client.get("/api/health", headers={"Origin": origin})
+        assert r.headers.get("access-control-allow-origin") == origin, origin
+    r = client.get("/api/health", headers={"Origin": "https://evil.example.com"})
+    assert "access-control-allow-origin" not in r.headers
+
+
 def test_admin_open_when_token_unset(client):
     assert client.get("/api/admin/ingestions").status_code == 200
 

@@ -40,8 +40,10 @@ app.add_middleware(
         "https://fpl-core-app.vercel.app",
         "http://localhost:3000",
     ],
-    # Vercel PR preview deployments: fpl-core-app-<hash>-<user>.vercel.app
-    allow_origin_regex=r"https://fpl-core-app-[a-z0-9-]+\.vercel\.app",
+    # Vercel previews, both URL shapes:
+    #   git integration: fpl-core-app-git-<branch>-<team>.vercel.app
+    #   CLI (our PR preview pipeline): fpl-core-<hash>-<team>.vercel.app
+    allow_origin_regex=r"https://fpl-core(-app)?-[a-z0-9-]+\.vercel\.app",
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
