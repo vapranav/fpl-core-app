@@ -74,7 +74,7 @@ function PlayerTile({
   return (
     <Link
       href={`/players/${pick.element}`}
-      className={`group relative flex w-16 flex-col items-center sm:w-20 ${subbedOut ? "opacity-50" : ""}`}
+      className={`group relative flex max-w-16 min-w-0 flex-1 flex-col items-center sm:max-w-20 ${subbedOut ? "opacity-50" : ""}`}
       title={`${pick.web_name}${pick.team_name ? ` · ${pick.team_name}` : ""}${
         pick.minutes !== null ? ` · ${pick.minutes} min` : ""
       }${subbedIn ? " · auto-subbed in" : subbedOut ? " · auto-subbed out" : ""}`}
