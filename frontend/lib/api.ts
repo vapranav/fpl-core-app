@@ -570,6 +570,8 @@ export interface MemberOverlap {
   player_name: string;
   rank: number;
   active_chip: string | null;
+  /** every chip played this season, in GW order (null if unavailable) */
+  chips_used: { name: string; event: number }[] | null;
   captain: OverlapPlayer | null;
   same_captain: boolean;
   shared: OverlapPlayer[];

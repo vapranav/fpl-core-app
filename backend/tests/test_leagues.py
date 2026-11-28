@@ -80,6 +80,10 @@ ENTRIES = {
 
 def _history(base):
     return {
+        "chips": [
+            {"name": "wildcard", "time": "2026-09-06T20:10:29Z", "event": 4},
+            {"name": "bboost", "time": "2026-08-28T08:21:58Z", "event": 2},
+        ],
         "current": [
             {
                 "event": 1,
@@ -97,7 +101,7 @@ def _history(base):
                 "value": 1005,
                 "bank": 5,
             },
-        ]
+        ],
     }
 
 
@@ -263,3 +267,11 @@ def test_overlap_names_from_fpl_bootstrap(client):
     ]
     assert cy["captain"]["web_name"] == "Wall"  # not in bootstrap: filled from our DB
     assert {p["web_name"] for p in cy["theirs_only"]} == {"Keeper", "#97"}  # 97: nowhere
+
+
+def test_overlap_lists_each_rivals_chips(client):
+    data = client.get("/api/leagues/42/overlap?entry=111&gw=2").json()
+    bob, cy = data["members"]
+    # season chips in GW order; 333's history request fails, so unknown (None)
+    assert bob["chips_used"] == [{"name": "bboost", "event": 2}, {"name": "wildcard", "event": 4}]
+    assert cy["chips_used"] is None

@@ -25,6 +25,7 @@ from .leagues import (
     DEFAULT_HISTORY_MEMBERS,
     MAX_MEMBERS,
     build_overlap,
+    chips_used,
     fan_out,
     member_series,
 )
@@ -1039,12 +1040,15 @@ def league_overlap(
 
     elements = {p["element"] for _, pk in rivals for p in pk["picks"]}
     elements |= {p["element"] for p in my_picks["picks"]}
-    return {
-        "league_id": league_id,
-        "entry_id": entry,
-        "gw": gw,
-        **build_overlap(my_picks["picks"], rivals, _player_names(elements, db)),
-    }
+    result = build_overlap(my_picks["picks"], rivals, _player_names(elements, db))
+
+    # every chip each rival has played this season (shares the season chart's
+    # cached history requests); None when that member's history failed
+    histories = fan_out(get_entry_history, [r["entry"] for r, _ in rivals])
+    chips = {r["entry"]: chips_used(h) for (r, _), h in zip(rivals, histories, strict=True)}
+    for m in result["members"]:
+        m["chips_used"] = chips.get(m["entry"])
+    return {"league_id": league_id, "entry_id": entry, "gw": gw, **result}
 
 
 def _player_names(elements: set[int], db: Session) -> dict[int, dict]:

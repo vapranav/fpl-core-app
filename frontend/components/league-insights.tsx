@@ -188,6 +188,44 @@ const CHIPS: Record<string, string> = {
   manager: "Assistant Manager",
 };
 
+const CHIP_SHORT: Record<string, string> = {
+  bboost: "BB",
+  "3xc": "TC",
+  freehit: "FH",
+  wildcard: "WC",
+  manager: "AM",
+};
+
+/** Chips a rival has played this season; this GW's chip is highlighted. */
+function ChipsUsed({ m, gw }: { m: MemberOverlap; gw: number }) {
+  const chips = [...(m.chips_used ?? [])];
+  // the live picks can know about this GW's chip before the history does
+  if (m.active_chip && !chips.some((c) => c.event === gw))
+    chips.push({ name: m.active_chip, event: gw });
+  if (chips.length === 0)
+    return <span className="text-muted">{m.chips_used ? "None" : "–"}</span>;
+  return (
+    <span className="flex flex-wrap gap-1">
+      {chips.map((c) => {
+        const now = c.event === gw;
+        return (
+          <span
+            key={`${c.name}-${c.event}`}
+            title={`${CHIPS[c.name] ?? c.name} in GW${c.event}${now ? " (this gameweek)" : ""}`}
+            className={`rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap tabular-nums ${
+              now
+                ? "bg-amber-500/20 text-amber-700 dark:text-amber-400"
+                : "bg-border text-foreground"
+            }`}
+          >
+            {CHIP_SHORT[c.name] ?? c.name} {c.event}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
 const posShort = (p: string | null) => (p ? p.slice(0, 3).toUpperCase() : "");
 
 function Chip({
@@ -245,7 +283,15 @@ function ChipRow({
   );
 }
 
-function MemberRow({ m, squadSize }: { m: MemberOverlap; squadSize: number }) {
+function MemberRow({
+  m,
+  squadSize,
+  gw,
+}: {
+  m: MemberOverlap;
+  squadSize: number;
+  gw: number;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -288,8 +334,8 @@ function MemberRow({ m, squadSize }: { m: MemberOverlap; squadSize: number }) {
             "–"
           )}
         </td>
-        <td className="text-muted hidden px-3 py-2 text-xs sm:table-cell">
-          {m.active_chip ? (CHIPS[m.active_chip] ?? m.active_chip) : ""}
+        <td className="hidden px-3 py-2 text-xs sm:table-cell">
+          <ChipsUsed m={m} gw={gw} />
         </td>
       </tr>
       {open && (
@@ -298,6 +344,13 @@ function MemberRow({ m, squadSize }: { m: MemberOverlap; squadSize: number }) {
             <ChipRow label="Shared" players={m.shared} tone="shared" />
             <ChipRow label="Only you" players={m.mine_only} tone="mine" />
             <ChipRow label="Only them" players={m.theirs_only} tone="theirs" />
+            {/* the Chips column is hidden on phones */}
+            <div className="flex flex-wrap items-center gap-1 sm:hidden">
+              <span className="text-muted mr-1 w-20 text-xs tracking-wide uppercase">
+                Chips
+              </span>
+              <ChipsUsed m={m} gw={gw} />
+            </div>
           </td>
         </tr>
       )}
@@ -383,20 +436,27 @@ function OverlapView({ data }: { data: LeagueOverlap }) {
               <th className="px-3 py-2 font-medium">Shared</th>
               <th className="px-3 py-2 font-medium">Captain</th>
               <th className="hidden px-3 py-2 font-medium sm:table-cell">
-                Chip
+                Chips used
               </th>
             </tr>
           </thead>
           <tbody>
             {members.map((m) => (
-              <MemberRow key={m.entry} m={m} squadSize={squad_size} />
+              <MemberRow
+                key={m.entry}
+                m={m}
+                squadSize={squad_size}
+                gw={data.gw}
+              />
             ))}
           </tbody>
         </table>
       </div>
       <p className="text-muted text-xs">
         Click a manager to see shared players and differentials. (B) marks bench
-        players.
+        players. Chips used this season, with the gameweek: WC Wildcard, FH Free
+        Hit, BB Bench Boost, TC Triple Captain, AM Assistant Manager;
+        highlighted means played this gameweek.
       </p>
     </div>
   );

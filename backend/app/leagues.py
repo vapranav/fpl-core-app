@@ -51,6 +51,16 @@ def member_series(history: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def chips_used(history: dict[str, Any] | None) -> list[dict[str, Any]] | None:
+    """Chips played this season, in gameweek order: [{name, event}]."""
+    if history is None:
+        return None
+    return sorted(
+        ({"name": c["name"], "event": c["event"]} for c in history.get("chips", [])),
+        key=lambda c: c["event"],
+    )
+
+
 def build_overlap(
     my_picks: list[dict],
     rivals: list[tuple[dict, dict]],
