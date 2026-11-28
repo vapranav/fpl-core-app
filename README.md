@@ -104,11 +104,13 @@ Or the full stack: `docker compose up --build`.
 
 ## Deploy
 
-- **Every merge to `main` deploys the backend**: `tag.yml` cuts the next
-  patch tag + GitHub release and runs the deploy workflow (remote build on
-  Fly). Tags are the deploy gate; `v0.x.y` history is the release log.
-- Manual deploys: Actions → Deploy → Run workflow, or publish a release by
-  hand — never `fly deploy` from a local checkout (it may be stale).
+- **Every merge to `main` is tagged**: `tag.yml` cuts the next patch tag
+  (`v0.x.y`) so every commit on main maps to a version.
+- **Deploys are release-gated**: publishing a GitHub release (Releases →
+  Draft → pick the tag) runs `deploy.yml`, a remote build on Fly from the
+  tagged commit. Nothing deploys until you publish a release. Manual escape
+  hatch: Actions → Deploy → Run workflow. Never `fly deploy` from a local
+  checkout (it may be stale).
 - **Frontend (Vercel)**: auto-deploys `frontend/` on every merge; previews
   on every PR. PR frontend previews build against the PR's own preview
   backend when `VERCEL_*` secrets are configured (see CONTRIBUTING).
