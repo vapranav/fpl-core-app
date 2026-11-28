@@ -2,23 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Copy FPL token</title>
+    <title>FPL tokens</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <header>
       <img src="icons/32.png" alt="" width="20" height="20" />
-      <h1>FPL token</h1>
+      <h1>FPL tokens</h1>
     </header>
     <p id="status" class="status" role="status">Looking for your token…</p>
+    <div id="picker" hidden>
+      <label for="account" class="label">Account</label>
+      <select id="account"></select>
+    </div>
     <p id="meta" class="meta"></p>
     <div class="actions">
       <button id="copy" type="button" disabled>Copy token</button>
+      <button id="remove" type="button" class="secondary" hidden>Remove</button>
       <button id="open-fpl" type="button" class="secondary" hidden>Open FPL</button>
     </div>
+    <label class="toggle">
+      <input id="auto-sync" type="checkbox" />
+      Auto-fill the matching token on FPL Core
+    </label>
     <p class="hint">
-      Paste it into <a id="app-link" href="#" target="_blank" rel="noopener">FPL Core → My Team</a>.
-      Treat it like a password: it lets anyone act as you on FPL until it expires.
+      Sign in to each FPL account once to add it here. Open
+      <a id="app-link" href="#" target="_blank" rel="noopener">FPL Core → My Team</a>
+      with a team connected and its token is filled in for you. Treat tokens like
+      passwords: they let anyone act as you on FPL until they expire.
     </p>
     <script src="popup.js"></script>
   </body>

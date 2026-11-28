@@ -1,26 +1,15 @@
-// One click on the toolbar icon: find the FPL access token and copy it.
+// Popup: lists every FPL account the extension holds a token for (one per
+// team ID), copies the chosen one, and toggles auto-fill on FPL Core.
 //
-// Sources, best first:
-//  1. a signed-in fantasy.premierleague.com tab's web storage (the site's OIDC
-//     client keeps the user session, access_token included, there)
-//  2. the bearer token background.js saw on the site's latest API request
+// On open it also scans signed-in fantasy.premierleague.com tabs' web storage
+// for the site's OIDC access_token and hands any it finds to background.js,
+// which checks them with FPL and files them under their team.
 
 const FPL_URL = "https://fantasy.premierleague.com/";
 const APP_URL = "https://fpl-core-app.vercel.app/my-team";
 
 const $ = (id) => document.getElementById(id);
-let current = null;
-
-function decodeExp(token) {
-  try {
-    const part = token.split(".")[1];
-    const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
-    const exp = JSON.parse(json).exp;
-    return typeof exp === "number" ? exp * 1000 : null;
-  } catch {
-    return null;
-  }
-}
+let accounts = {};
 
 // Runs inside the FPL tab. Collects every JWT-looking access token from
 // localStorage/sessionStorage (OIDC session objects or bare tokens).
@@ -29,16 +18,15 @@ function scanStorage() {
   const found = [];
   for (const store of [localStorage, sessionStorage]) {
     for (let i = 0; i < store.length; i++) {
-      const key = store.key(i);
-      const raw = store.getItem(key);
+      const raw = store.getItem(store.key(i));
       if (!raw) continue;
       if (isJwt(raw)) {
-        found.push({ token: raw, key, oidc: false });
+        found.push(raw);
         continue;
       }
       try {
         const obj = JSON.parse(raw);
-        if (obj && isJwt(obj.access_token)) found.push({ token: obj.access_token, key, oidc: true });
+        if (obj && isJwt(obj.access_token)) found.push(obj.access_token);
       } catch {
         /* not JSON */
       }
@@ -47,51 +35,67 @@ function scanStorage() {
   return found;
 }
 
-async function fromTabs() {
+/** Saves tokens found in open FPL tabs; returns the accounts they matched. */
+async function scanTabs() {
   const tabs = await chrome.tabs.query({ url: "https://fantasy.premierleague.com/*" });
-  const candidates = [];
+  const tokens = new Set();
   for (const tab of tabs) {
     try {
-      const [res] = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: scanStorage,
-      });
-      for (const c of res?.result ?? []) candidates.push({ ...c, source: "FPL tab" });
+      const [res] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: scanStorage });
+      for (const t of res?.result ?? []) tokens.add(t);
     } catch {
       /* tab not scriptable (loading, discarded) */
     }
   }
-  return { tabs, candidates };
+  if (!tokens.size) return [];
+  const saved = await chrome.runtime.sendMessage({ type: "save", tokens: [...tokens] });
+  return (saved ?? []).filter(Boolean);
 }
 
-async function fromCapture() {
-  const { captured } = await chrome.storage.session.get("captured");
-  return captured ? [{ token: captured.token, source: "last FPL request" }] : [];
-}
+const isLive = (a) => !a.exp || a.exp > Date.now();
 
-// unexpired tokens only, latest expiry first
-function pick(candidates) {
-  const now = Date.now();
-  const scored = candidates
-    .map((c) => ({ ...c, exp: decodeExp(c.token) }))
-    .filter((c) => c.exp === null || c.exp > now);
-  // an OIDC session's access_token beats a bare JWT (which may be an ID token)
-  scored.sort((a, b) => (b.oidc ? 1 : 0) - (a.oidc ? 1 : 0) || (b.exp ?? 0) - (a.exp ?? 0));
-  return scored[0] ?? null;
-}
-
-function fmtExpiry(exp) {
-  if (!exp) return "";
-  const mins = Math.round((exp - Date.now()) / 60000);
+function fmtExpiry(a) {
+  if (!a.exp) return "";
+  if (!isLive(a)) return "Expired — sign in to this account on FPL again";
+  const mins = Math.round((a.exp - Date.now()) / 60000);
   return mins < 120
     ? `Expires in ${mins} min`
-    : `Expires ${new Date(exp).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}`;
+    : `Expires ${new Date(a.exp).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}`;
 }
 
 function setStatus(text, tone) {
-  const el = $("status");
-  el.textContent = text;
-  el.className = `status ${tone ?? ""}`;
+  $("status").textContent = text;
+  $("status").className = `status ${tone ?? ""}`;
+}
+
+const selected = () => accounts[$("account").value] ?? null;
+
+function renderSelected() {
+  const a = selected();
+  $("copy").disabled = !a || !isLive(a);
+  $("remove").hidden = !a;
+  $("meta").textContent = a ? [a.manager, fmtExpiry(a)].filter(Boolean).join(" · ") : "";
+  setCopied(false);
+}
+
+function render(preferId) {
+  const list = Object.values(accounts).sort(
+    (x, y) => Number(isLive(y)) - Number(isLive(x)) || (y.savedAt ?? 0) - (x.savedAt ?? 0),
+  );
+  const select = $("account");
+  select.replaceChildren(
+    ...list.map((a) => {
+      const opt = document.createElement("option");
+      opt.value = a.entryId;
+      opt.textContent = `${a.teamName ?? "Team"} · ${a.entryId}${isLive(a) ? "" : " (expired)"}`;
+      return opt;
+    }),
+  );
+  $("picker").hidden = list.length === 0;
+  $("open-fpl").hidden = list.some(isLive);
+  if (preferId && accounts[preferId]) select.value = preferId;
+  renderSelected();
+  return list;
 }
 
 // the popup may open without focus, which the async clipboard API refuses;
@@ -114,53 +118,60 @@ async function writeClipboard(text) {
 }
 
 function setCopied(copied) {
-  const btn = $("copy");
-  btn.textContent = copied ? "Copied ✓" : "Copy token";
-  btn.classList.toggle("copied", copied);
+  $("copy").textContent = copied ? "Copied ✓" : "Copy token";
+  $("copy").classList.toggle("copied", copied);
 }
 
-let resetTimer;
 async function copy() {
-  if (!current) return false;
-  clearTimeout(resetTimer);
-  const ok = await writeClipboard(current.token);
-  if (ok) {
-    setStatus("Copied to clipboard ✓", "ok");
+  const a = selected();
+  if (!a || !isLive(a)) return;
+  if (await writeClipboard(a.token)) {
+    setStatus(`Copied token for team ${a.entryId} ✓`, "ok");
     setCopied(true);
-    // after a while, offer the button again (status line keeps saying copied)
-    resetTimer = setTimeout(() => {
-      $("copy").textContent = "Copy again";
-      $("copy").classList.remove("copied");
-    }, 3000);
   } else {
-    setStatus("Found your token — click Copy", "");
-    setCopied(false);
+    setStatus("Couldn't copy — try the button again", "err");
   }
-  return ok;
+}
+
+async function remove() {
+  const a = selected();
+  if (!a) return;
+  await chrome.runtime.sendMessage({ type: "remove", entryId: a.entryId });
+  delete accounts[a.entryId];
+  const left = render();
+  setStatus(left.length ? `Removed team ${a.entryId}` : "No saved accounts", "");
 }
 
 async function main() {
   $("app-link").href = APP_URL;
   $("open-fpl").addEventListener("click", () => chrome.tabs.create({ url: FPL_URL }));
   $("copy").addEventListener("click", copy);
+  $("remove").addEventListener("click", remove);
+  $("account").addEventListener("change", () => {
+    renderSelected();
+    setStatus(`${Object.keys(accounts).length} saved account(s)`, "");
+  });
 
-  const { tabs, candidates } = await fromTabs();
-  current = pick([...candidates, ...(await fromCapture())]);
+  const { autoSync = true } = await chrome.storage.local.get("autoSync");
+  $("auto-sync").checked = autoSync;
+  $("auto-sync").addEventListener("change", (e) => chrome.storage.local.set({ autoSync: e.target.checked }));
 
-  if (!current) {
-    $("open-fpl").hidden = false;
-    setStatus(tabs.length ? "No token yet" : "No FPL tab open", "err");
-    $("meta").textContent = tabs.length
-      ? "Sign in on fantasy.premierleague.com (or reload its Pick Team page), then click the icon again."
-      : "Open fantasy.premierleague.com, sign in, then click the icon again.";
+  const fromTabs = await scanTabs();
+  ({ accounts = {} } = await chrome.storage.local.get("accounts"));
+  const current = fromTabs.find(isLive);
+  const list = render(current?.entryId);
+
+  if (!list.length) {
+    setStatus("No accounts yet", "err");
+    $("meta").textContent =
+      "Open fantasy.premierleague.com and sign in (or reload its Pick Team page), then click the icon again.";
     return;
   }
-
-  $("copy").disabled = false;
-  $("meta").textContent = [fmtExpiry(current.exp), `from ${current.source}`]
-    .filter(Boolean)
-    .join(" · ");
-  await copy(); // the one click: opening the popup copies straight away
+  if (current) {
+    await copy(); // one click copies the account signed in on FPL right now
+    return;
+  }
+  setStatus(`${list.length} saved account(s)`, list.some(isLive) ? "" : "err");
 }
 
 main().catch((e) => setStatus(`Something went wrong: ${e.message}`, "err"));

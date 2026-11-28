@@ -1,34 +1,51 @@
-# FPL Core – Copy FPL Token (Chrome extension)
+# FPL Core – FPL Tokens (Chrome extension)
 
-One click copies your Fantasy Premier League access token to the clipboard, so
-you can paste it into **FPL Core → My Team → Unlock private team data** and see
-what FPL only shows the team's owner: selling prices, free transfers and
-remaining chips.
+Keeps an FPL access token for each Fantasy Premier League account you sign in
+to, and fills the matching one into **FPL Core → My Team** so you can see what
+FPL only shows a team's owner: selling prices, free transfers and remaining
+chips.
 
 ## Install (unpacked)
 
 1. Open `chrome://extensions` and turn on **Developer mode**.
-2. **Load unpacked** → pick this `extension/` folder.
+2. **Load unpacked** → pick this `extension/` folder (or click ↻ on the card
+   after pulling changes).
 3. Pin the extension to the toolbar.
 
 ## Use
 
-1. Sign in on [fantasy.premierleague.com](https://fantasy.premierleague.com) in
-   any tab.
-2. Click the extension icon — the token is copied straight away
-   ("Copied to clipboard ✓"; the popup also shows when it expires).
-3. Paste it on FPL Core's My Team page.
+1. Sign in on [fantasy.premierleague.com](https://fantasy.premierleague.com).
+   The extension picks up the token as soon as the site calls its API (open
+   Pick Team if it hasn't). Repeat for every account you have: sign out, sign
+   in with the next one.
+2. Click the extension icon to see every saved account in the **Account**
+   dropdown (team name · team ID, with expiry). The account signed in on FPL
+   right now is copied straight away. Pick another one and **Copy token** to
+   copy that, or **Remove** to forget it.
+3. On FPL Core, connect a team ID on My Team. If the extension has a live
+   token for that team, it fills it in automatically. Switch to another team
+   and its token is swapped in. Turn this off with **Auto-fill the matching
+   token on FPL Core** in the popup.
 
-If it says *No token yet*, reload the FPL **Pick Team** page and click again.
+Tokens expire after a few hours. When one does, sign in to that account on FPL
+again and the stored token is refreshed (FPL Core picks up the new one too).
 
-## How it finds the token
+## How it works
 
-- It reads the signed-in FPL tab's web storage for the site's OIDC session
-  (`access_token`), via `chrome.scripting`.
-- As a fallback, `background.js` remembers the `Bearer` token the FPL site
-  sends on its own `/api/*` requests (`webRequest`, observe-only). That copy
-  lives in `chrome.storage.session`: in memory, gone when Chrome closes.
+- **Capture:** `background.js` watches the `Bearer` token the FPL site sends
+  on its own `/api/*` requests (`webRequest`, observe-only). The popup also
+  reads signed-in FPL tabs' web storage for the site's OIDC `access_token`.
+- **Mapping:** each new token is checked once with FPL's `/api/me/` (token
+  only, no cookies) to learn its team ID, and `/api/entry/{id}/` for the team
+  name. Tokens FPL rejects are dropped. Accounts are stored in
+  `chrome.storage.local` keyed by team ID, one token per team (the
+  longer-lived one wins). Accounts that expired over 30 days ago are pruned.
+- **Auto-fill:** `fpl-core-sync.js` runs on `fpl-core-app.vercel.app` and
+  `localhost:3000`. It reads the app's `fpl-entry-id` and writes the matching
+  token to `fpl-api-token`. It won't overwrite a hand-pasted token that
+  outlives the stored one.
 
-The extension only has access to `fantasy.premierleague.com`, makes no network
-requests of its own and sends the token nowhere — it only writes it to your
-clipboard. Treat the token like a password; it expires on its own.
+The extension makes requests only to `fantasy.premierleague.com` and never
+sends tokens anywhere else. Note that `chrome.storage.local` persists on disk
+in your Chrome profile (unencrypted), so anyone with access to that profile can
+read the tokens. Treat them like passwords.

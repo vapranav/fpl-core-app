@@ -1,15 +1,45 @@
 {
   "manifest_version": 3,
-  "name": "FPL Core – Copy FPL Token",
-  "version": "1.0.0",
-  "description": "Copy your Fantasy Premier League access token in one click, to unlock private team data in FPL Core.",
-  "permissions": ["storage", "scripting", "webRequest", "clipboardWrite"],
-  "host_permissions": ["https://fantasy.premierleague.com/*"],
-  "background": { "service_worker": "background.js" },
-  "action": {
-    "default_title": "Copy FPL token",
-    "default_popup": "popup.html",
-    "default_icon": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png" }
+  "name": "FPL Core – FPL Tokens",
+  "version": "1.1.0",
+  "description": "Keeps an FPL access token for each of your FPL accounts and fills the right one into FPL Core.",
+  "permissions": [
+    "storage",
+    "scripting",
+    "webRequest",
+    "clipboardWrite"
+  ],
+  "host_permissions": [
+    "https://fantasy.premierleague.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
   },
-  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" }
+  "action": {
+    "default_title": "FPL tokens",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://fpl-core-app.vercel.app/*",
+        "http://localhost:3000/*"
+      ],
+      "js": [
+        "fpl-core-sync.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
 }
