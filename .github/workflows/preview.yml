@@ -71,18 +71,40 @@ jobs:
           [ "$fail" = 0 ] || exit 1
           echo "smoke gate: all endpoints 200"
 
+      - name: Deploy frontend preview pointed at the preview backend
+        if: vars.VERCEL_FRONTEND_PREVIEWS == 'true'
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          API: https://${{ env.APP }}.fly.dev
+        run: |
+          npx vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+          NEXT_PUBLIC_API_URL="$API" npx vercel build --token="$VERCEL_TOKEN"
+          url=$(npx vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+          echo "FRONTEND_URL=$url" >> "$GITHUB_ENV"
+
       - name: Comment preview URL on PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           URL="https://${{ env.APP }}.fly.dev"
+          FRONTEND="${{ env.FRONTEND_URL }}"
           BODY=$(cat <<EOF
           ## Preview environment 🚧
           **Backend:** $URL (interactive docs: $URL/docs) — seeded with all 3 seasons; smoke gate passed.
-          The Vercel preview below still uses the prod API; backend changes are testable via the URL above.
-          App is destroyed automatically when this PR closes.
           EOF
           )
+          if [ -n "$FRONTEND" ]; then
+            BODY="$BODY
+          **Frontend:** $FRONTEND — built against the preview backend above."
+          else
+            BODY="$BODY
+          The Vercel preview below still uses the prod API; backend changes are testable via the URL above."
+          fi
+          BODY="$BODY
+          App is destroyed automatically when this PR closes."
           gh pr comment ${{ github.event.pull_request.number }} --edit-last \
             --body "$BODY" 2>/dev/null \
             || gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"

@@ -11,6 +11,12 @@ Live: https://fpl-core-app.vercel.app · API: https://fpl-core-api.fly.dev/docs
 
 ## Features
 
+- **My Team** — connect your FPL manager by entry ID (no credentials: the
+  official entry/picks/leagues endpoints are public; the ID lives in your
+  browser's localStorage). Squad with photos, captain/vice chips, bank and
+  squad value, plus your classic leagues with rank movement.
+- **League standings** — any classic mini-league, paginated, your own row
+  highlighted.
 - **Players explorer** — every player sortable/filterable by points, form,
   price, ownership, xG/xA, defensive contribution; typeahead search.
 - **Player detail** — stat cards, per-GW points chart, per-match stats
@@ -80,6 +86,9 @@ Or the full stack: `docker compose up --build`.
 | `GET /api/matches` | all comps; `gw` `team_code` `finished` filters |
 | `GET /api/matches/{id}/timeline` | shots, momentum, xG-by-minute |
 | `POST /api/admin/refresh` | force re-ingestion (`X-Admin-Token` when set) |
+| `GET /api/manager/{id}` | FPL manager profile + classic leagues (public FPL API) |
+| `GET /api/manager/{id}/team` | manager picks enriched with our player data |
+| `GET /api/leagues/{id}/standings?page=` | classic league standings |
 | `GET /api/admin/ingestions` | ingestion run log |
 
 ## Configuration (env vars)
@@ -95,12 +104,14 @@ Or the full stack: `docker compose up --build`.
 
 ## Deploy
 
-- **Backend (Fly.io)**: release-driven — publishing a GitHub release runs
-  `deploy.yml` (remote build from the merged commit). First-time setup
-  (`apps create`, volume, secrets) is documented in git history; cost is
-  ~1 shared-cpu machine + 1GB volume.
+- **Every merge to `main` deploys the backend**: `tag.yml` cuts the next
+  patch tag + GitHub release and runs the deploy workflow (remote build on
+  Fly). Tags are the deploy gate; `v0.x.y` history is the release log.
+- Manual deploys: Actions → Deploy → Run workflow, or publish a release by
+  hand — never `fly deploy` from a local checkout (it may be stale).
 - **Frontend (Vercel)**: auto-deploys `frontend/` on every merge; previews
-  on every PR.
+  on every PR. PR frontend previews build against the PR's own preview
+  backend when `VERCEL_*` secrets are configured (see CONTRIBUTING).
 - **PR previews**: every PR gets an isolated seeded backend on Fly — see
   [CONTRIBUTING.md](CONTRIBUTING.md#preview-environments).
 

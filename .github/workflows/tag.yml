@@ -1,0 +1,36 @@
+name: Tag and release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create next patch tag + release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git fetch --tags -q
+          latest=$(git tag -l 'v[0-9]*' | sort -V | tail -1)
+          [ -z "$latest" ] && latest=v0.0.0
+          next=$(echo "$latest" | awk -F. '{printf "%s.%s.%d", $1, $2, $3+1}')
+          echo "latest=$latest -> next=$next"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$next"
+          git push origin "$next"
+          gh release create "$next" --generate-notes --title "$next"
+
+  deploy:
+    needs: tag
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
