@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { SquadPitch } from "./squad-pitch";
 import { useEffect, useState } from "react";
 import { useEntryId } from "./entry-id";
+import { LeagueCards } from "./league-cards";
 import { PlayerPhoto } from "./player-photo";
-import { RankMovement } from "./rank-movement";
 import { inputClass } from "./select";
 import {
   ApiRequestError,
@@ -188,8 +189,8 @@ function Connected({
   return (
     <>
       <TeamHeader profile={profile} team={team} onDisconnect={onDisconnect} />
-      <SquadTable picks={team.picks} />
-      <LeagueCards leagues={profile.leagues} />
+      <SquadSection team={team} />
+      <MyLeagues leagues={profile.leagues} />
     </>
   );
 }
@@ -257,15 +258,59 @@ function TeamHeader({
   );
 }
 
-// ---- squad table ----------------------------------------------------------
+// ---- squad: pitch or list ---------------------------------------------------
+
+type SquadView = "pitch" | "list";
+
+function SquadSection({ team }: { team: ManagerTeam }) {
+  const [view, setView] = useState<SquadView>("pitch");
+  return (
+    <section className="mb-6">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="font-display text-lg font-semibold">Squad</h2>
+        <div
+          role="tablist"
+          aria-label="Squad view"
+          className="border-border bg-surface flex rounded-md border p-0.5 text-xs"
+        >
+          {(
+            [
+              ["pitch", "Pitch"],
+              ["list", "List"],
+            ] as [SquadView, string][]
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={`rounded px-3 py-1 ${
+                view === v
+                  ? "bg-accent/10 text-accent font-semibold"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {view === "pitch" ? (
+        <SquadPitch team={team} />
+      ) : (
+        <SquadTable picks={team.picks} />
+      )}
+    </section>
+  );
+}
 
 function SquadTable({ picks }: { picks: SquadPick[] }) {
   const starters = picks.filter((p) => p.squad_position <= 11);
   const bench = picks.filter((p) => p.squad_position > 11);
 
   return (
-    <section className="mb-6">
-      <h2 className="font-display mb-2 text-lg font-semibold">Squad</h2>
+    <div>
       <div className="border-border bg-surface overflow-x-auto rounded-lg border">
         <table className="w-full text-sm tabular-nums">
           <thead className="bg-background text-left">
@@ -300,7 +345,7 @@ function SquadTable({ picks }: { picks: SquadPick[] }) {
           </tbody>
         </table>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -373,29 +418,12 @@ function PickRow({
 
 // ---- league cards ---------------------------------------------------------
 
-function LeagueCards({ leagues }: { leagues: ManagerLeague[] }) {
+function MyLeagues({ leagues }: { leagues: ManagerLeague[] }) {
   if (leagues.length === 0) return null;
   return (
     <section>
       <h2 className="font-display mb-2 text-lg font-semibold">Leagues</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {leagues.map((lg) => (
-          <Link
-            key={lg.id}
-            href={`/leagues/${lg.id}`}
-            className="border-border bg-surface hover:bg-background flex items-center justify-between gap-2 rounded-lg border p-4 transition-colors"
-          >
-            <span className="truncate text-sm font-medium">{lg.name}</span>
-            <span className="flex shrink-0 items-center gap-1.5 text-sm tabular-nums">
-              <RankMovement
-                rank={lg.entry_rank}
-                lastRank={lg.entry_last_rank}
-              />
-              <span className="font-semibold">{fmtRank(lg.entry_rank)}</span>
-            </span>
-          </Link>
-        ))}
-      </div>
+      <LeagueCards leagues={leagues} />
     </section>
   );
 }

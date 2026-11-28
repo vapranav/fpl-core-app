@@ -58,6 +58,11 @@ DATABASE_URL="sqlite:///./fpl.db" SEASONS="2026-2027" \
   uvicorn app.main:app --reload        # :8000/docs
 ```
 
+LLM features use your own Anthropic API key: copy `.env.example` to
+`backend/.env` and set `ANTHROPIC_API_KEY` (optionally `LLM_MODEL`). The file
+is git-ignored; without a key the app runs as normal. On Fly, set it with
+`fly secrets set ANTHROPIC_API_KEY=...` instead of committing it.
+
 Frontend:
 
 ```bash

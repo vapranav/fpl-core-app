@@ -8,6 +8,7 @@ import type { LeagueStandingRow } from "@/lib/api";
 export function StandingsTable({ rows }: { rows: LeagueStandingRow[] }) {
   const [entryId] = useEntryId();
   const own = entryId === null ? null : Number(entryId);
+  const showValue = rows.some((r) => r.team_value != null);
 
   return (
     <div className="border-border bg-surface overflow-x-auto rounded-lg border">
@@ -19,6 +20,20 @@ export function StandingsTable({ rows }: { rows: LeagueStandingRow[] }) {
             <th className="hidden px-3 py-2 font-medium sm:table-cell">
               Manager
             </th>
+            <th
+              className="hidden px-3 py-2 font-medium sm:table-cell"
+              title="FPL team ID (opens their team on the FPL site)"
+            >
+              Team ID
+            </th>
+            {showValue && (
+              <th
+                className="hidden px-3 py-2 text-right font-medium md:table-cell"
+                title="Squad value at the last deadline"
+              >
+                Value
+              </th>
+            )}
             <th className="px-3 py-2 text-right font-medium">GW</th>
             <th className="px-3 py-2 text-right font-medium">Total</th>
           </tr>
@@ -39,10 +54,33 @@ export function StandingsTable({ rows }: { rows: LeagueStandingRow[] }) {
                     <RankMovement rank={r.rank} lastRank={r.last_rank} />
                   </span>
                 </td>
-                <td className="px-3 py-1.5">{r.entry_name}</td>
+                <td className="px-3 py-1.5">
+                  {r.entry_name}
+                  {/* no Manager / Team ID columns on phones: show the ID here */}
+                  <span className="text-muted block text-xs font-normal sm:hidden">
+                    ID <TeamId id={r.entry} />
+                  </span>
+                </td>
                 <td className="text-muted hidden px-3 py-1.5 sm:table-cell">
                   {r.player_name}
                 </td>
+                <td className="hidden px-3 py-1.5 sm:table-cell">
+                  <TeamId id={r.entry} />
+                </td>
+                {showValue && (
+                  <td
+                    className="text-muted hidden px-3 py-1.5 text-right md:table-cell"
+                    title={
+                      r.bank != null
+                        ? `£${r.bank.toFixed(1)}m in the bank`
+                        : undefined
+                    }
+                  >
+                    {r.team_value != null
+                      ? `£${r.team_value.toFixed(1)}m`
+                      : "–"}
+                  </td>
+                )}
                 <td className="px-3 py-1.5 text-right">{r.event_total}</td>
                 <td className="px-3 py-1.5 text-right font-semibold">
                   {r.total.toLocaleString("en-GB")}
@@ -53,5 +91,20 @@ export function StandingsTable({ rows }: { rows: LeagueStandingRow[] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** A manager's FPL team ID, linking to their team on the official site. */
+function TeamId({ id }: { id: number }) {
+  return (
+    <a
+      href={`https://fantasy.premierleague.com/entry/${id}/history`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-muted hover:text-foreground font-mono text-xs hover:underline"
+      title={`Open team ${id} on fantasy.premierleague.com`}
+    >
+      {id}
+    </a>
   );
 }
