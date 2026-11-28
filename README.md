@@ -7,7 +7,7 @@ by FPL IDs.
 
 **Stack**: FastAPI · SQLAlchemy · SQLite · APScheduler · Next.js · Docker
 
-Live: https://fpl-core-app.vercel.app · API: https://fpl-core-api.fly.dev/docs
+Live: https://fpl-core-app.vercel.app — API: https://fpl-core-api.fly.dev/docs
 
 ## Features
 
