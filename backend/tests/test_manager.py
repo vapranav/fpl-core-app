@@ -2,6 +2,7 @@
 
 from unittest import mock
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -56,7 +57,10 @@ PICKS = {
             "multiplier": 0,
         },  # unknown to our DB
     ],
+    "active_chip": "bboost",
+    "automatic_subs": [{"element_in": 3, "element_out": 2, "event": 3}],
     "entry_history": {
+        "points_on_bench": 4,
         "points": 34,
         "event_transfers": 1,
         "event_transfers_cost": 0,
@@ -64,6 +68,14 @@ PICKS = {
         "value": 1005,
         "overall_rank": 12345,
     },
+}
+
+LIVE = {
+    "elements": [
+        {"id": 1, "stats": {"total_points": 9, "minutes": 90}},
+        {"id": 2, "stats": {"total_points": 0, "minutes": 0}},
+        {"id": 3, "stats": {"total_points": 4, "minutes": 90}},
+    ]
 }
 
 STANDINGS = {
@@ -115,8 +127,9 @@ def client(fixture_repo):
             "app.routers.get_league_standings",
             side_effect=lambda lid, page: STANDINGS if lid == 42 else None,
         ),
+        mock.patch("app.routers.get_event_live", side_effect=lambda gw: LIVE if gw == 3 else None),
     )
-    with patches[0], patches[1], patches[2]:
+    with patches[0], patches[1], patches[2], patches[3]:
         yield TestClient(app, raise_server_exceptions=True)
 
 
@@ -154,6 +167,25 @@ def test_manager_team_enriched(client):
     # unknown element degrades gracefully
     assert picks[3]["web_name"] == "#999"
     assert picks[3]["photo_url"] is None
+
+
+def test_manager_team_live_points_for_pitch(client):
+    data = client.get("/api/manager/123456/team").json()
+    striker, playmaker, wall, unknown = data["picks"]
+    assert (striker["gw_points"], striker["minutes"], striker["team_short"]) == (9, 90, "ALF")
+    assert playmaker["gw_points"] == 0 and playmaker["minutes"] == 0
+    assert wall["team_short"] == "BET"
+    # not in the live feed or our DB
+    assert unknown["gw_points"] is None and unknown["team_short"] is None
+    assert data["active_chip"] == "bboost"
+    assert data["points_on_bench"] == 4
+    assert data["automatic_subs"] == [{"element_in": 3, "element_out": 2}]
+
+
+def test_manager_team_without_live_feed(client):
+    with mock.patch("app.routers.get_event_live", side_effect=httpx.ConnectError("down")):
+        data = client.get("/api/manager/123456/team").json()
+    assert data["picks"][0]["gw_points"] is None  # degrades, doesn't fail
 
 
 def test_league_standings(client):

@@ -456,6 +456,10 @@ export interface SquadPick {
   now_cost: number | null;
   total_points: number | null;
   form: number | null;
+  // this GW, live from FPL (null if the live feed is unavailable)
+  team_short: string | null;
+  gw_points: number | null;
+  minutes: number | null;
 }
 
 export interface ManagerTeam {
@@ -470,6 +474,9 @@ export interface ManagerTeam {
   squad_value: number; // £m
   overall_rank: number | null;
   picks: SquadPick[];
+  points_on_bench: number | null;
+  active_chip: string | null;
+  automatic_subs: { element_in: number; element_out: number }[];
 }
 
 export interface LeagueStandingRow {

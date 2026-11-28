@@ -14,6 +14,7 @@ from .fpl_client import (
     get_element_summary,
     get_entry,
     get_entry_history,
+    get_event_live,
     get_league_standings,
     get_picks,
     get_price_change_history,
@@ -855,7 +856,7 @@ def manager_team(entry_id: int, gw: int | None = None, db: Session = Depends(get
     stats_gw = _latest_gw(db, season)
     element_ids = [p["element"] for p in picks_data.get("picks", [])]
     rows = db.execute(
-        select(Player, PlayerStats, Team.name.label("team_name"))
+        select(Player, PlayerStats, Team.name.label("team_name"), Team.short_name)
         .join(
             PlayerStats,
             (PlayerStats.season == Player.season)
@@ -865,11 +866,13 @@ def manager_team(entry_id: int, gw: int | None = None, db: Session = Depends(get
         .join(Team, (Team.season == Player.season) & (Team.code == Player.team_code))
         .where(Player.season == season, Player.player_id.in_(element_ids))
     ).all()
-    by_id = {p.player_id: (p, st, tn) for p, st, tn in rows}
+    by_id = {p.player_id: (p, st, tn, short) for p, st, tn, short in rows}
+    live = _live_stats(gw)
 
     picks = []
     for pick in picks_data.get("picks", []):
-        p, st, team_name = by_id.get(pick["element"], (None, None, None))
+        p, st, team_name, team_short = by_id.get(pick["element"], (None, None, None, None))
+        stats = live.get(pick["element"])
         picks.append(
             {
                 "element": pick["element"],
@@ -885,6 +888,10 @@ def manager_team(entry_id: int, gw: int | None = None, db: Session = Depends(get
                 "now_cost": st.now_cost if st else None,
                 "total_points": st.total_points if st else None,
                 "form": st.form if st else None,
+                # this GW, live from FPL (None when the live feed is unavailable)
+                "team_short": team_short,
+                "gw_points": stats["total_points"] if stats else None,
+                "minutes": stats["minutes"] if stats else None,
             }
         )
     picks.sort(key=lambda p: p["squad_position"])
@@ -902,7 +909,22 @@ def manager_team(entry_id: int, gw: int | None = None, db: Session = Depends(get
         "squad_value": (picks_entry.get("value") or 0) / 10,
         "overall_rank": picks_entry.get("overall_rank"),
         "picks": picks,
+        "points_on_bench": picks_entry.get("points_on_bench"),
+        "active_chip": picks_data.get("active_chip"),
+        "automatic_subs": [
+            {"element_in": s["element_in"], "element_out": s["element_out"]}
+            for s in picks_data.get("automatic_subs", [])
+        ],
     }
+
+
+def _live_stats(gw: int) -> dict[int, dict]:
+    """element id -> live stats for a GW; empty if FPL's live feed fails."""
+    try:
+        data = get_event_live(gw)
+    except httpx.HTTPError:
+        return {}
+    return {e["id"]: e.get("stats", {}) for e in (data or {}).get("elements", [])}
 
 
 @api.get("/leagues/{league_id}/standings")

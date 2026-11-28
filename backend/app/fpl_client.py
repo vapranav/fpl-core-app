@@ -54,6 +54,11 @@ def get_event_status() -> dict:
     return _cached_get("/event-status/", ttl=60)
 
 
+def get_event_live(gw: int) -> dict | None:
+    """Every player's points and minutes for a GW, updated during matches."""
+    return _cached_get(f"/event/{gw}/live/", ttl=60)
+
+
 def get_league_standings(league_id: int, page: int) -> dict | None:
     return _cached_get(f"/leagues-classic/{league_id}/standings/?page_standings={page}", ttl=300)
 
