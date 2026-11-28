@@ -13,5 +13,18 @@ services:
       - "8000:8000"
     restart: unless-stopped
 
+  frontend:
+    build: ./frontend
+    environment:
+      # server components fetch inside the container (compose network)...
+      API_URL: http://api:8000
+      # ...browser-side code must reach the API via the HOST
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   fpldata:
