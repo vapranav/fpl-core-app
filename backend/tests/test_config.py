@@ -13,7 +13,7 @@ def test_season_list_parsing():
 
 
 def test_player_photo_url():
-    assert player_photo_url(223094).endswith("/photos/players/250x250/p223094.png")
+    assert player_photo_url(223094).endswith("/photos/players/110x140/p223094.png")
     assert player_photo_url(None) is None
 
 
