@@ -8,6 +8,10 @@ import {
   getPlayers,
 } from "@/lib/api";
 
+// rendered per-request: static prerendering would fetch the API during
+// `next build`, which fails in CI/Docker where no API is reachable
+export const dynamic = "force-dynamic";
+
 const FEATURES = [
   {
     href: "/players",

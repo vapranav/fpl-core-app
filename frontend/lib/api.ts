@@ -1,4 +1,9 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// server components fetch API_URL (compose network / Vercel runtime), the
+// browser fetches NEXT_PUBLIC_API_URL (host-reachable); same value in dev
+const API_URL =
+  process.env.API_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://localhost:8000";
 
 export interface PlayerStats {
   total_points: number | null;
