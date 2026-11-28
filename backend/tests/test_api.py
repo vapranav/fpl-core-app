@@ -26,7 +26,10 @@ def client(fixture_repo):
 
 
 def test_health(client):
-    assert client.get("/api/health").json() == {"status": "ok"}
+    data = client.get("/api/health").json()
+    assert data["status"] == "ok"
+    # the fixture seed ran a successful ingestion
+    assert data["last_refresh"] is not None
 
 
 def test_seasons(client):
