@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LeagueInsights } from "@/components/league-insights";
 import { StandingsTable } from "@/components/standings-table";
 import {
   ApiRequestError,
@@ -27,15 +28,18 @@ export default async function LeaguePage({
 
   let data: LeagueStandings;
   try {
-    data = await getLeagueStandings(leagueId, page);
+    data = await getLeagueStandings(leagueId, page, true);
   } catch (err) {
     if (err instanceof ApiRequestError && err.status === 404) notFound();
     throw err;
   }
 
   return (
-    <main className="mx-auto max-w-6xl p-4 sm:p-6">
+    <main className="mx-auto w-full max-w-6xl p-4 sm:p-6">
       <header className="mb-6">
+        <Link href="/leagues" className="text-muted text-sm hover:underline">
+          ← My leagues
+        </Link>
         <h1 className="font-display text-3xl font-bold tracking-tight">
           {data.league_name ?? `League ${leagueId}`}
         </h1>
@@ -65,6 +69,8 @@ export default async function LeaguePage({
           )}
         </div>
       </nav>
+
+      <LeagueInsights leagueId={leagueId} />
     </main>
   );
 }

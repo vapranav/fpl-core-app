@@ -480,6 +480,8 @@ export interface LeagueStandingRow {
   player_name: string;
   event_total: number;
   total: number;
+  team_value: number | null; // £m at the last deadline (only with values)
+  bank: number | null; // £m
 }
 
 export interface LeagueStandings {
@@ -504,8 +506,81 @@ export function getManagerTeam(
 export function getLeagueStandings(
   leagueId: number,
   page = 1,
+  withValues = false,
 ): Promise<LeagueStandings> {
-  return getLive(`/api/leagues/${leagueId}/standings?page=${page}`);
+  return getLive(
+    `/api/leagues/${leagueId}/standings?page=${page}${withValues ? "&values=true" : ""}`,
+  );
+}
+
+// ---- league insights (official FPL API, one request per member) ------------
+
+export interface MemberGameweek {
+  event: number;
+  points: number;
+  total_points: number;
+  overall_rank: number | null;
+  value: number | null; // tenths of £m
+  bank: number | null;
+  points_on_bench: number | null;
+  event_transfers_cost: number | null;
+}
+
+export interface LeagueMemberHistory {
+  entry: number;
+  entry_name: string;
+  player_name: string;
+  series: MemberGameweek[];
+}
+
+export function getLeagueHistory(
+  leagueId: number,
+  include?: number | null,
+): Promise<{ league_id: number; members: LeagueMemberHistory[] }> {
+  return getLive(
+    `/api/leagues/${leagueId}/history${include ? `?include=${include}` : ""}`,
+  );
+}
+
+export interface OverlapPlayer {
+  element: number;
+  web_name: string;
+  team_short: string | null;
+  position: string | null;
+  squad_position: number; // 12-15 = bench
+}
+
+export interface MemberOverlap {
+  entry: number;
+  entry_name: string;
+  player_name: string;
+  rank: number;
+  active_chip: string | null;
+  captain: OverlapPlayer | null;
+  same_captain: boolean;
+  shared: OverlapPlayer[];
+  mine_only: OverlapPlayer[];
+  theirs_only: OverlapPlayer[];
+}
+
+export interface LeagueOverlap {
+  league_id: number;
+  entry_id: number;
+  gw: number;
+  squad_size: number;
+  total_members: number;
+  my_squad: (OverlapPlayer & { is_captain: boolean; owned_by: number })[];
+  members: MemberOverlap[];
+}
+
+export function getLeagueOverlap(
+  leagueId: number,
+  entryId: number,
+  gw?: number,
+): Promise<LeagueOverlap> {
+  return getLive(
+    `/api/leagues/${leagueId}/overlap?entry=${entryId}${gw ? `&gw=${gw}` : ""}`,
+  );
 }
 
 // ---- price changes (official FPL API, live) ---------------------------------

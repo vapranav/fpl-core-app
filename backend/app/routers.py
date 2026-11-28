@@ -13,9 +13,17 @@ from .fpl_client import (
     get_bootstrap,
     get_element_summary,
     get_entry,
+    get_entry_history,
     get_league_standings,
     get_picks,
     get_price_change_history,
+)
+from .leagues import (
+    DEFAULT_HISTORY_MEMBERS,
+    MAX_MEMBERS,
+    build_overlap,
+    fan_out,
+    member_series,
 )
 from .models import (
     Fixture,
@@ -797,6 +805,12 @@ def match_timeline(match_id: str, season: str | None = None, db: Session = Depen
 # ---------------------------------------------------------------------------
 
 
+def _manager_name(entry: dict) -> str | None:
+    """FPL's entry payload has first/last name fields, not player_name."""
+    full = f"{entry.get('player_first_name') or ''} {entry.get('player_last_name') or ''}"
+    return entry.get("player_name") or full.strip() or None
+
+
 @api.get("/manager/{entry_id}")
 def manager_profile(entry_id: int, db: Session = Depends(get_db)):
     """Manager profile + classic leagues, from the official public FPL API."""
@@ -806,7 +820,7 @@ def manager_profile(entry_id: int, db: Session = Depends(get_db)):
     leagues = entry.get("leagues", {}).get("classic", [])
     return {
         "entry_id": entry["id"],
-        "manager_name": entry.get("player_name"),
+        "manager_name": _manager_name(entry),
         "team_name": entry.get("name"),
         "overall_points": entry.get("summary_overall_points"),
         "overall_rank": entry.get("summary_overall_rank"),
@@ -879,7 +893,7 @@ def manager_team(entry_id: int, gw: int | None = None, db: Session = Depends(get
     return {
         "entry_id": entry_id,
         "team_name": entry.get("name"),
-        "manager_name": entry.get("player_name"),
+        "manager_name": _manager_name(entry),
         "gw": gw,
         "gw_points": picks_entry.get("points"),
         "event_transfers": picks_entry.get("event_transfers"),
@@ -892,12 +906,26 @@ def manager_team(entry_id: int, gw: int | None = None, db: Session = Depends(get
 
 
 @api.get("/leagues/{league_id}/standings")
-def league_standings(league_id: int, page: int = Query(1, ge=1)):
+def league_standings(
+    league_id: int,
+    page: int = Query(1, ge=1),
+    values: bool = Query(False, description="also fetch each team's value and bank"),
+):
     """Classic league standings, proxied from the official public FPL API."""
     data = get_league_standings(league_id, page)
     if data is None or "standings" not in data:
         raise HTTPException(404, "league not found")
     st = data["standings"]
+    results = st.get("results", [])
+    # value/bank as of the last deadline, in £m (one entry request per row)
+    entries = fan_out(get_entry, [r["entry"] for r in results]) if values else []
+    team_value = {
+        r["entry"]: (
+            (e.get("last_deadline_value") or 0) / 10 if e else None,
+            (e.get("last_deadline_bank") or 0) / 10 if e else None,
+        )
+        for r, e in zip(results, entries, strict=False)
+    }
     return {
         "league_id": league_id,
         "league_name": data.get("league", {}).get("name"),
@@ -912,9 +940,100 @@ def league_standings(league_id: int, page: int = Query(1, ge=1)):
                 "player_name": r["player_name"],
                 "event_total": r["event_total"],
                 "total": r["total"],
+                "team_value": team_value.get(r["entry"], (None, None))[0],
+                "bank": team_value.get(r["entry"], (None, None))[1],
             }
-            for r in st.get("results", [])
+            for r in results
         ],
+    }
+
+
+def _league_rows(league_id: int, limit: int) -> list[dict]:
+    """Top `limit` members of a league (first standings page)."""
+    data = get_league_standings(league_id, 1)
+    if data is None or "standings" not in data:
+        raise HTTPException(404, "league not found")
+    return data["standings"].get("results", [])[:limit]
+
+
+@api.get("/leagues/{league_id}/history")
+def league_history(
+    league_id: int,
+    limit: int = Query(DEFAULT_HISTORY_MEMBERS, ge=1, le=MAX_MEMBERS),
+    include: list[int] = Query([], description="extra entry ids, e.g. your own"),
+):
+    """Season GW-by-GW history for the league's top members (plus `include`)."""
+    rows = [
+        {"entry": r["entry"], "entry_name": r["entry_name"], "player_name": r["player_name"]}
+        for r in _league_rows(league_id, limit)
+    ]
+    seen = {r["entry"] for r in rows}
+    for entry_id in dict.fromkeys(include):
+        if entry_id in seen:
+            continue
+        entry = get_entry(entry_id)
+        if entry is None:
+            continue
+        rows.append(
+            {
+                "entry": entry_id,
+                "entry_name": entry.get("name"),
+                "player_name": _manager_name(entry),
+            }
+        )
+    histories = fan_out(get_entry_history, [r["entry"] for r in rows])
+    return {
+        "league_id": league_id,
+        "members": [
+            {**r, "series": member_series(h)} for r, h in zip(rows, histories, strict=True) if h
+        ],
+    }
+
+
+@api.get("/leagues/{league_id}/overlap")
+def league_overlap(
+    league_id: int,
+    entry: int = Query(..., gt=0, description="the manager to compare against the league"),
+    gw: int | None = Query(None, ge=1, le=38),
+    limit: int = Query(MAX_MEMBERS, ge=1, le=MAX_MEMBERS),
+    db: Session = Depends(get_db),
+):
+    """How a manager's squad overlaps with each rival's for a gameweek."""
+    if gw is None:
+        me = get_entry(entry)
+        if me is None:
+            raise HTTPException(404, "manager not found")
+        gw = me.get("current_event")
+        if not gw:
+            raise HTTPException(404, "the season hasn't started yet")
+    my_picks = get_picks(entry, gw)
+    if my_picks is None:
+        raise HTTPException(404, f"no picks for GW{gw} yet")
+    rows = [r for r in _league_rows(league_id, limit) if r["entry"] != entry]
+    picks = fan_out(lambda r: get_picks(r["entry"], gw), rows)
+    rivals = [(r, p) for r, p in zip(rows, picks, strict=True) if p]
+
+    # names from our dataset (latest season); FPL element ids == player_id
+    elements = {p["element"] for _, pk in rivals for p in pk["picks"]}
+    elements |= {p["element"] for p in my_picks["picks"]}
+    season = db.scalar(select(func.max(Player.season)))
+    players: dict[int, dict] = {}
+    if season and elements:
+        for p, short in db.execute(
+            select(Player, Team.short_name)
+            .join(Team, (Team.season == Player.season) & (Team.code == Player.team_code))
+            .where(Player.season == season, Player.player_id.in_(elements))
+        ).all():
+            players[p.player_id] = {
+                "web_name": p.web_name,
+                "team_short": short,
+                "position": p.position,
+            }
+    return {
+        "league_id": league_id,
+        "entry_id": entry,
+        "gw": gw,
+        **build_overlap(my_picks["picks"], rivals, players),
     }
 
 
