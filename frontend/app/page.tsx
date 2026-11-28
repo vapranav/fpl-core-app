@@ -19,6 +19,16 @@ const FEATURES = [
     desc: "Every player, sortable by points, form, price, xG, defensive contribution and more — with photos and club badges.",
   },
   {
+    href: "/compare",
+    title: "Player comparison",
+    desc: "Up to five players side by side: season stats, gameweek-by-gameweek charts, upcoming fixtures and ownership trends.",
+  },
+  {
+    href: "/prices",
+    title: "Price change predictions",
+    desc: "FPL's own rise and drop predictions with a countdown to the next update — your squad highlighted.",
+  },
+  {
     href: "/differentials",
     title: "Differentials finder",
     desc: "Low-ownership players in form with soft upcoming fixtures, scored with team Elo. Find the gems the crowd is sleeping on.",
