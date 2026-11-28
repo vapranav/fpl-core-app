@@ -10,7 +10,7 @@ import { badgeUrl } from "@/lib/api";
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const DEBOUNCE_MS = 200;
 
-interface Suggestion {
+export interface Suggestion {
   player_id: number;
   web_name: string;
   team_code: number;
@@ -20,7 +20,23 @@ interface Suggestion {
   total_points: number | null;
 }
 
-export function SearchBar({ defaultValue = "" }: { defaultValue?: string }) {
+/**
+ * Player typeahead. By default picking a player opens their page; pass
+ * `onSelect` to handle the pick instead (the input is cleared afterwards).
+ */
+export function SearchBar({
+  defaultValue = "",
+  onSelect,
+  excludeIds,
+  disabled = false,
+  placeholder = "Search player…",
+}: {
+  defaultValue?: string;
+  onSelect?: (s: Suggestion) => void;
+  excludeIds?: number[];
+  disabled?: boolean;
+  placeholder?: string;
+}) {
   const router = useRouter();
   const [query, setQuery] = useState(defaultValue);
   const [results, setResults] = useState<Suggestion[]>([]);
@@ -76,20 +92,31 @@ export function SearchBar({ defaultValue = "" }: { defaultValue?: string }) {
 
   const go = (s: Suggestion) => {
     setOpen(false);
-    router.push(`/players/${s.player_id}`);
+    if (onSelect) {
+      onSelect(s);
+      setQuery("");
+      setResults([]);
+      setActive(-1);
+    } else {
+      router.push(`/players/${s.player_id}`);
+    }
   };
 
+  const shown = excludeIds
+    ? results.filter((s) => !excludeIds.includes(s.player_id))
+    : results;
+
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!open || results.length === 0) return;
+    if (!open || shown.length === 0) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((a) => (a + 1) % results.length);
+      setActive((a) => (a + 1) % shown.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActive((a) => (a - 1 + results.length) % results.length);
+      setActive((a) => (a - 1 + shown.length) % shown.length);
     } else if (e.key === "Enter" && active >= 0) {
       e.preventDefault(); // navigate instead of submitting the filter form
-      go(results[active]);
+      go(shown[active]);
     } else if (e.key === "Escape") {
       setOpen(false);
       setActive(-1);
@@ -103,13 +130,14 @@ export function SearchBar({ defaultValue = "" }: { defaultValue?: string }) {
       <input
         type="text"
         name="search"
-        placeholder="Search player…"
+        placeholder={placeholder}
+        disabled={disabled}
         autoComplete="off"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => results.length > 0 && setOpen(true)}
         onKeyDown={onKeyDown}
-        className={inputClass}
+        className={`${inputClass} disabled:opacity-50 ${onSelect ? "w-full" : ""}`}
         role="combobox"
         aria-expanded={showDropdown}
         aria-controls="player-search-results"
@@ -120,10 +148,10 @@ export function SearchBar({ defaultValue = "" }: { defaultValue?: string }) {
           id="player-search-results"
           className="border-border bg-surface absolute z-20 mt-1 max-h-80 w-72 overflow-y-auto rounded-md border py-1 shadow-lg"
         >
-          {results.length === 0 && (
+          {shown.length === 0 && (
             <li className="text-muted px-3 py-2 text-sm">No players found</li>
           )}
-          {results.map((s, i) => (
+          {shown.map((s, i) => (
             <li key={s.player_id}>
               <button
                 type="button"

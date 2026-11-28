@@ -1,13 +1,22 @@
 """API routers."""
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.orm import Session
 
+from .compare import build_player
 from .config import settings
 from .db import get_db
 from .etl import refresh
-from .fpl_client import get_entry, get_league_standings, get_picks
+from .fpl_client import (
+    get_bootstrap,
+    get_element_summary,
+    get_entry,
+    get_league_standings,
+    get_picks,
+    get_price_change_history,
+)
 from .models import (
     Fixture,
     Gameweek,
@@ -23,6 +32,7 @@ from .models import (
     Team,
     XgByMinute,
 )
+from .prices import build_price_changes
 from .schemas import player_photo_url, team_badge_url
 
 api = APIRouter(prefix="/api")
@@ -906,6 +916,73 @@ def league_standings(league_id: int, page: int = Query(1, ge=1)):
             for r in st.get("results", [])
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Live FPL data: price changes + player comparison
+# ---------------------------------------------------------------------------
+
+MAX_COMPARE = 5
+
+
+def _upstream(fn, *args):
+    """Call the official FPL API; upstream failures become a 502, not a 500."""
+    try:
+        return fn(*args)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"FPL API request failed: {e}") from e
+
+
+@api.get("/prices")
+def price_changes():
+    """FPL's own price-change predictions plus every change made this season."""
+    fetched_at, boot = _upstream(get_bootstrap)
+    history = _upstream(get_price_change_history)
+    return build_price_changes(fetched_at, boot, history)
+
+
+@api.get("/compare")
+def compare_players(
+    ids: list[int] = Query(..., min_length=1, max_length=MAX_COMPARE),
+    db: Session = Depends(get_db),
+):
+    """Side-by-side season stats, GW history and fixtures for up to 5 players."""
+    ids = list(dict.fromkeys(ids))
+    if any(i <= 0 for i in ids):
+        raise HTTPException(422, "player ids must be positive")
+    _, boot = _upstream(get_bootstrap)
+    elements = {p["id"]: p for p in boot["elements"]}
+    missing = [i for i in ids if i not in elements]
+    if missing:
+        raise HTTPException(404, f"unknown player id(s): {missing}")
+    teams = {t["id"]: t for t in boot["teams"]}
+    types = {t["id"]: t for t in boot["element_types"]}
+
+    # week-on-week snapshots from the dataset (empty before ingestion)
+    season = db.scalar(select(func.max(Player.season)))
+    trends: dict[int, list[dict]] = {i: [] for i in ids}
+    if season:
+        snaps = db.scalars(
+            select(PlayerStats)
+            .where(PlayerStats.season == season, PlayerStats.id.in_(ids))
+            .order_by(PlayerStats.gw)
+        ).all()
+        for s in snaps:
+            trends[s.id].append(
+                {
+                    "gw": s.gw,
+                    "ep_next": s.ep_next,
+                    "selected_by_percent": s.selected_by_percent,
+                    "now_cost": s.now_cost,
+                    "form": s.form,
+                }
+            )
+
+    players = []
+    for i in ids:
+        summary = _upstream(get_element_summary, i) or {}
+        players.append(build_player(elements[i], summary, teams, types, trends[i]))
+    return {"season": season, "players": players}
 
 
 # ---------------------------------------------------------------------------

@@ -507,3 +507,158 @@ export function getLeagueStandings(
 ): Promise<LeagueStandings> {
   return getLive(`/api/leagues/${leagueId}/standings?page=${page}`);
 }
+
+// ---- price changes (official FPL API, live) ---------------------------------
+
+export interface PricePlayer {
+  id: number;
+  web_name: string;
+  team_code: number;
+  team_short: string;
+  team_name: string;
+  position_short: "GKP" | "DEF" | "MID" | "FWD";
+  status: string;
+  news: string;
+  now_cost: number; // tenths of £m
+  selected_by_percent: number;
+}
+
+export interface PricePrediction extends PricePlayer {
+  progress: number;
+  predicted_progress: number | null;
+  likelihood: number;
+  status_label: string;
+  locked: boolean;
+  direction: "rise" | "drop" | null;
+  trend: "up" | "down";
+  hourly_rate: number;
+  locked_until: string | null;
+  calibrating: boolean;
+}
+
+export interface RecentPriceChange extends PricePlayer {
+  event: number | null;
+  changed_at: string;
+  cost_before: number;
+  cost_after: number;
+}
+
+export interface PriceChanges {
+  fetched_at: string;
+  next_update_at: string;
+  current_event: number | null;
+  predictions: PricePrediction[];
+  recent_changes: RecentPriceChange[];
+}
+
+export function getPriceChanges(): Promise<PriceChanges> {
+  return getLive("/api/prices");
+}
+
+// ---- player comparison (official FPL API + dataset snapshots) ----------------
+
+export const MAX_COMPARE = 5;
+
+export interface CompareGameweek {
+  event: number;
+  opponent_short: string;
+  was_home: boolean;
+  total_points: number;
+  minutes: number;
+  goals_scored: number;
+  assists: number;
+  expected_goals: number;
+  expected_assists: number;
+  defensive_contribution: number;
+  value: number;
+}
+
+export interface CompareFixture {
+  event: number | null;
+  opponent_short: string;
+  is_home: boolean;
+  difficulty: number;
+  kickoff_time: string | null;
+}
+
+/** One FPL-Core-Insights snapshot (now_cost in £m, unlike the live tenths). */
+export interface CompareTrendPoint {
+  gw: number;
+  ep_next: number | null;
+  selected_by_percent: number | null;
+  now_cost: number | null;
+  form: number | null;
+}
+
+export interface ComparePlayer {
+  id: number;
+  web_name: string;
+  full_name: string;
+  team_code: number;
+  team_short: string;
+  team_name: string;
+  position_short: string;
+  status: string;
+  news: string;
+  chance_of_playing_next_round: number | null;
+  now_cost: number; // tenths of £m
+  selected_by_percent: number;
+  total_points: number;
+  event_points: number;
+  form: number;
+  points_per_game: number;
+  minutes: number;
+  starts: number;
+  goals_scored: number;
+  assists: number;
+  clean_sheets: number;
+  goals_conceded: number;
+  bonus: number;
+  bps: number;
+  expected_goals: number;
+  expected_assists: number;
+  expected_goal_involvements: number;
+  expected_goals_conceded: number;
+  ict_index: number;
+  influence: number;
+  creativity: number;
+  threat: number;
+  defensive_contribution: number;
+  saves: number;
+  yellow_cards: number;
+  red_cards: number;
+  transfers_in_event: number;
+  transfers_out_event: number;
+  value_season: number;
+  dreamteam_count: number;
+  ep_next: number | null;
+  ep_this: number | null;
+  cost_change_start: number; // £m
+  penalties_order: number | null;
+  corners_and_indirect_freekicks_order: number | null;
+  direct_freekicks_order: number | null;
+  expected_goals_per_90: number;
+  expected_assists_per_90: number;
+  expected_goal_involvements_per_90: number;
+  expected_goals_conceded_per_90: number;
+  saves_per_90: number;
+  clean_sheets_per_90: number;
+  defensive_contribution_per_90: number;
+  tackles: number;
+  clearances_blocks_interceptions: number;
+  recoveries: number;
+  form_rank: number | null;
+  ict_index_rank: number | null;
+  selected_rank: number | null;
+  points_per_game_rank: number | null;
+  now_cost_rank: number | null;
+  history: CompareGameweek[];
+  fixtures: CompareFixture[];
+  trend: CompareTrendPoint[];
+}
+
+export function getPlayerCompare(
+  ids: number[],
+): Promise<{ season: string | null; players: ComparePlayer[] }> {
+  return getLive(`/api/compare?${ids.map((id) => `ids=${id}`).join("&")}`);
+}

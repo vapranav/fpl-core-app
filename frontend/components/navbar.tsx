@@ -8,6 +8,8 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/my-team", label: "My Team" },
   { href: "/players", label: "Players" },
+  { href: "/compare", label: "Compare" },
+  { href: "/prices", label: "Prices" },
   { href: "/differentials", label: "Differentials" },
   { href: "/rotation", label: "Rotation" },
   { href: "/matches", label: "Matches" },
