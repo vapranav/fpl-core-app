@@ -148,6 +148,8 @@ def client(fixture_repo):
         mock.patch("app.routers.get_entry", side_effect=_entry),
         mock.patch("app.routers.get_entry_history", side_effect=_get_history),
         mock.patch("app.routers.get_picks", side_effect=lambda eid, gw: PICKS.get(eid)),
+        # FPL bootstrap unreachable by default: names come from our dataset
+        mock.patch("app.routers.get_bootstrap", side_effect=httpx.ConnectError("down")),
     ):
         yield TestClient(app, raise_server_exceptions=True)
 
@@ -223,3 +225,41 @@ def test_upstream_failures_are_502_not_500(client):
         r = client.get("/api/leagues/42/overlap?entry=111&gw=2")
     assert r.status_code == 502
     assert "FPL API request failed" in r.json()["detail"]
+
+
+BOOTSTRAP = {
+    "teams": [
+        {"id": 1, "short_name": "ALF"},
+        {"id": 2, "short_name": "BET"},
+        {"id": 9, "short_name": "NEW"},
+    ],
+    "element_types": [
+        {"id": 1, "singular_name": "Goalkeeper"},
+        {"id": 3, "singular_name": "Midfielder"},
+        {"id": 4, "singular_name": "Forward"},
+    ],
+    "elements": [
+        {"id": 1, "web_name": "Striker", "team": 1, "element_type": 4},
+        {"id": 99, "web_name": "Newboy", "team": 9, "element_type": 3},
+        {"id": 98, "web_name": "Keeper", "team": 9, "element_type": 1},
+    ],
+}
+
+
+def test_overlap_names_from_fpl_bootstrap(client):
+    """Names don't depend on our dataset (empty while a fresh deploy ingests)."""
+    with mock.patch("app.routers.get_bootstrap", return_value=(None, BOOTSTRAP)):
+        data = client.get("/api/leagues/42/overlap?entry=111&gw=2").json()
+    bob, cy = data["members"]
+    # 99 isn't in our dataset at all, but FPL knows him
+    assert bob["theirs_only"] == [
+        {
+            "element": 99,
+            "web_name": "Newboy",
+            "team_short": "NEW",
+            "position": "Midfielder",
+            "squad_position": 3,
+        }
+    ]
+    assert cy["captain"]["web_name"] == "Wall"  # not in bootstrap: filled from our DB
+    assert {p["web_name"] for p in cy["theirs_only"]} == {"Keeper", "#97"}  # 97: nowhere

@@ -1,5 +1,7 @@
 """API routers."""
 
+import logging
+
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 from sqlalchemy import asc, desc, func, select
@@ -1035,28 +1037,53 @@ def league_overlap(
     picks = fan_out(lambda r: get_picks(r["entry"], gw), rows)
     rivals = [(r, p) for r, p in zip(rows, picks, strict=True) if p]
 
-    # names from our dataset (latest season); FPL element ids == player_id
     elements = {p["element"] for _, pk in rivals for p in pk["picks"]}
     elements |= {p["element"] for p in my_picks["picks"]}
-    season = db.scalar(select(func.max(Player.season)))
-    players: dict[int, dict] = {}
-    if season and elements:
-        for p, short in db.execute(
-            select(Player, Team.short_name)
-            .join(Team, (Team.season == Player.season) & (Team.code == Player.team_code))
-            .where(Player.season == season, Player.player_id.in_(elements))
-        ).all():
-            players[p.player_id] = {
-                "web_name": p.web_name,
-                "team_short": short,
-                "position": p.position,
-            }
     return {
         "league_id": league_id,
         "entry_id": entry,
         "gw": gw,
-        **build_overlap(my_picks["picks"], rivals, players),
+        **build_overlap(my_picks["picks"], rivals, _player_names(elements, db)),
     }
+
+
+def _player_names(elements: set[int], db: Session) -> dict[int, dict]:
+    """element id -> {web_name, team_short, position} for display.
+
+    FPL's own bootstrap first: always current and independent of our dataset,
+    which is empty while a fresh deploy (e.g. a PR preview) re-ingests. Our
+    DB fills any gaps if FPL is unreachable; build_overlap shows "#id" for
+    anything still unknown.
+    """
+    names: dict[int, dict] = {}
+    try:
+        _, boot = get_bootstrap()
+        teams = {t["id"]: t["short_name"] for t in boot["teams"]}
+        types = {t["id"]: t["singular_name"] for t in boot["element_types"]}
+        for p in boot["elements"]:
+            if p["id"] in elements:
+                names[p["id"]] = {
+                    "web_name": p["web_name"],
+                    "team_short": teams.get(p["team"]),
+                    "position": types.get(p["element_type"]),
+                }
+    except (httpx.HTTPError, KeyError, TypeError) as e:
+        logging.getLogger("fpl.leagues").warning("bootstrap names unavailable: %s", e)
+
+    missing = elements - names.keys()
+    season = db.scalar(select(func.max(Player.season))) if missing else None
+    if season:
+        for p, short in db.execute(
+            select(Player, Team.short_name)
+            .join(Team, (Team.season == Player.season) & (Team.code == Player.team_code))
+            .where(Player.season == season, Player.player_id.in_(missing))
+        ).all():
+            names[p.player_id] = {
+                "web_name": p.web_name,
+                "team_short": short,
+                "position": p.position,
+            }
+    return names
 
 
 # ---------------------------------------------------------------------------
