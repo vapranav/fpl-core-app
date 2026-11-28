@@ -5,7 +5,7 @@ import { MomentumChart } from "@/components/timeline/momentum-chart";
 import { ShotMap } from "@/components/timeline/shot-map";
 import { XgFlowChart } from "@/components/timeline/xg-flow";
 import { getMatchTimeline, type ShotRow } from "@/lib/api";
-import { fmtKickoff } from "@/lib/format";
+import { LocalTime } from "@/components/local-time";
 import { competitionOf, slugClubs } from "@/lib/slugs";
 
 function fmt(v: number | null | undefined, digits = 1): string {
@@ -141,7 +141,9 @@ export default async function MatchPage({
             {competitionOf(m.match_id)}
           </span>
           {m.gameweek !== null && <span>GW{m.gameweek}</span>}
-          <span>{fmtKickoff(m.kickoff_time)} UTC</span>
+          <span>
+            <LocalTime iso={m.kickoff_time} />
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <span className="flex items-center gap-2 text-lg font-semibold">

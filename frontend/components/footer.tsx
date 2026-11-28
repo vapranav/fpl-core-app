@@ -1,3 +1,4 @@
+import { LocalTime } from "@/components/local-time";
 import { getHealth } from "@/lib/api";
 
 export async function Footer() {
@@ -17,13 +18,7 @@ export async function Footer() {
               ·
             </span>
             <span>
-              Data refreshed{" "}
-              {new Date(`${lastRefresh}Z`).toLocaleString("en-GB", {
-                day: "numeric",
-                month: "short",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              Data refreshed <LocalTime iso={lastRefresh} variant="short" />
             </span>
           </>
         )}
