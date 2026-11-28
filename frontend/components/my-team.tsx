@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { SquadPitch } from "./squad-pitch";
 import { useEffect, useState } from "react";
 import { useEntryId } from "./entry-id";
 import { PlayerPhoto } from "./player-photo";
@@ -188,7 +189,7 @@ function Connected({
   return (
     <>
       <TeamHeader profile={profile} team={team} onDisconnect={onDisconnect} />
-      <SquadTable picks={team.picks} />
+      <SquadSection team={team} />
       <LeagueCards leagues={profile.leagues} />
     </>
   );
@@ -257,15 +258,59 @@ function TeamHeader({
   );
 }
 
-// ---- squad table ----------------------------------------------------------
+// ---- squad: pitch or list ---------------------------------------------------
+
+type SquadView = "pitch" | "list";
+
+function SquadSection({ team }: { team: ManagerTeam }) {
+  const [view, setView] = useState<SquadView>("pitch");
+  return (
+    <section className="mb-6">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="font-display text-lg font-semibold">Squad</h2>
+        <div
+          role="tablist"
+          aria-label="Squad view"
+          className="border-border bg-surface flex rounded-md border p-0.5 text-xs"
+        >
+          {(
+            [
+              ["pitch", "Pitch"],
+              ["list", "List"],
+            ] as [SquadView, string][]
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={`rounded px-3 py-1 ${
+                view === v
+                  ? "bg-accent/10 text-accent font-semibold"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {view === "pitch" ? (
+        <SquadPitch team={team} />
+      ) : (
+        <SquadTable picks={team.picks} />
+      )}
+    </section>
+  );
+}
 
 function SquadTable({ picks }: { picks: SquadPick[] }) {
   const starters = picks.filter((p) => p.squad_position <= 11);
   const bench = picks.filter((p) => p.squad_position > 11);
 
   return (
-    <section className="mb-6">
-      <h2 className="font-display mb-2 text-lg font-semibold">Squad</h2>
+    <div>
       <div className="border-border bg-surface overflow-x-auto rounded-lg border">
         <table className="w-full text-sm tabular-nums">
           <thead className="bg-background text-left">
@@ -300,7 +345,7 @@ function SquadTable({ picks }: { picks: SquadPick[] }) {
           </tbody>
         </table>
       </div>
-    </section>
+    </div>
   );
 }
 
