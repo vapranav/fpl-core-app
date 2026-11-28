@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { LocalTime } from "@/components/local-time";
 import { PlayerPhoto } from "@/components/player-photo";
 import { Select } from "@/components/select";
 import { badgeUrl, getRotationRisk, type RotationRisk } from "@/lib/api";
@@ -11,17 +12,6 @@ const RISK_STYLES: Record<RotationRisk["risk_label"], string> = {
   Medium: "bg-orange-600/15 text-orange-700 dark:text-orange-400",
   Low: "bg-green-600/15 text-green-700 dark:text-green-400",
 };
-
-function fmtDate(iso: string | null): string {
-  if (!iso) return "–";
-  return new Date(`${iso}Z`).toLocaleString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export default async function RotationPage({
   searchParams,
@@ -121,7 +111,7 @@ export default async function RotationPage({
                       {p.midweek.competition}
                     </span>
                     <span className="text-muted">
-                      {fmtDate(p.midweek.kickoff_time)}
+                      <LocalTime iso={p.midweek.kickoff_time} />
                     </span>
                     <span className="ml-1.5 font-medium">
                       {p.midweek.minutes}&prime;
@@ -143,7 +133,7 @@ export default async function RotationPage({
                       </span>
                     </span>
                     <div className="text-muted text-xs">
-                      {fmtDate(p.next_fixture.kickoff_time)}
+                      <LocalTime iso={p.next_fixture.kickoff_time} />
                     </div>
                   </td>
                   <td className="px-3 py-1.5 text-right">

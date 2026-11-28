@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { LocalTime } from "@/components/local-time";
 import { PlayerPhoto } from "@/components/player-photo";
 import {
   badgeUrl,
@@ -66,13 +67,6 @@ export default async function HomePage() {
     ? new Date(`${gw.deadline_time}Z`)
     : null;
   const inProgress = deadlineAt !== null && now >= deadlineAt;
-  const deadline = deadlineAt?.toLocaleString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 
   return (
     <main className="mx-auto max-w-6xl p-4 sm:p-6">
@@ -104,8 +98,10 @@ export default async function HomePage() {
                 {inProgress ? "in progress" : "upcoming"}
               </span>
             </span>
-            {deadline && (
-              <span className="text-muted">deadline {deadline}</span>
+            {gw.deadline_time && (
+              <span className="text-muted">
+                deadline <LocalTime iso={gw.deadline_time} />
+              </span>
             )}
           </p>
         )}

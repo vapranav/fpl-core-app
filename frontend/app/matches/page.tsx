@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Select } from "@/components/select";
 import { TeamBadge } from "@/components/team-badge";
 import { getGameweeks, getMatches, getTeams, type MatchInfo } from "@/lib/api";
-import { fmtKickoff } from "@/lib/format";
+import { LocalTime } from "@/components/local-time";
 import { competitionOf, slugClubs } from "@/lib/slugs";
 
 function MatchRow({
@@ -47,7 +47,7 @@ function MatchRow({
         {m.gameweek !== null ? `GW${m.gameweek}` : "–"}
       </td>
       <td className="text-muted hidden px-3 py-1.5 md:table-cell">
-        {fmtKickoff(m.kickoff_time)}
+        <LocalTime iso={m.kickoff_time} />
       </td>
       <td className="text-accent px-3 py-1.5 text-right text-xs font-medium">
         <Link href={`/matches/${encodeURIComponent(m.match_id)}`}>
