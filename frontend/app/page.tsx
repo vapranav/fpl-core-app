@@ -71,7 +71,7 @@ export default async function HomePage() {
           Opta-like match stats and team Elo ratings, refreshed twice daily.
         </p>
         {gw && (
-          <p className="border-border bg-surface mt-3 inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border px-3 py-1.5 text-sm">
+          <p className="border-border bg-surface mt-3 inline-flex max-w-full flex-col items-start gap-x-2 gap-y-0.5 rounded-md border px-3 py-1.5 text-sm sm:flex-row sm:items-center">
             <span className="inline-flex items-center gap-2 whitespace-nowrap">
               <span
                 className={`inline-block h-2 w-2 rounded-full ${
@@ -86,13 +86,13 @@ export default async function HomePage() {
                 }
               />
               <span className="font-medium">{gw.name}</span>
+              <span className="text-muted text-xs">
+                {inProgress ? "in progress" : "upcoming"}
+              </span>
             </span>
             {deadline && (
               <span className="text-muted">deadline {deadline}</span>
             )}
-            <span className="text-muted text-xs">
-              {inProgress ? "in progress" : "upcoming"}
-            </span>
           </p>
         )}
       </section>
