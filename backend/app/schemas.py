@@ -8,7 +8,9 @@ computed URLs and list envelopes.
 PL_CDN = "https://resources.premierleague.com/premierleague"
 
 
-def player_photo_url(player_code: int | None, size: str = "250x250") -> str | None:
+def player_photo_url(player_code: int | None, size: str = "110x140") -> str | None:
+    # 110x140: what the official FPL app uses; some codes lack the 250x250
+    # variant (e.g. 97032) but exist at this size
     if player_code is None:
         return None
     return f"{PL_CDN}/photos/players/{size}/p{int(player_code)}.png"
