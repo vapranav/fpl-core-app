@@ -8,6 +8,11 @@ permissions:
   contents: read
   pull-requests: write
 
+# one deploy at a time per PR; a new push cancels the in-flight one
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     # no forked PRs: the Fly token must never leave the org
@@ -51,15 +56,18 @@ jobs:
           curl -sf "$URL/api/health" || { echo "app never came up"; exit 1; }
 
           echo "== waiting for bootstrap ingestion (all 3 seasons, ~2 min) =="
-          n=0
+          # /api/seasons reports data mid-load; wait for the run to say success.
+          # Previews set no ADMIN_TOKEN, so /api/admin/ingestions is open.
+          status=""
           for i in $(seq 1 90); do
-            n=$(curl -sf "$URL/api/seasons" | jq '.seasons | length' 2>/dev/null || echo 0)
-            [[ "$n" =~ ^[0-9]+$ ]] || n=0
-            [ "$n" -ge 3 ] && break
+            status=$(curl -sf "$URL/api/admin/ingestions?limit=1" \
+              | jq -r '.ingestions[0].status // empty' 2>/dev/null || true)
+            [ "$status" = "success" ] && break
             sleep 5
           done
-          [ "$n" -ge 3 ] || { echo "ingestion never finished (last count: $n)"; exit 1; }
-          echo "ingestion done: $n seasons"
+          [ "$status" = "success" ] \
+            || { echo "ingestion never succeeded (last status: ${status:-unknown})"; exit 1; }
+          echo "ingestion succeeded"
 
           echo "== endpoint smoke =="
           fail=0
