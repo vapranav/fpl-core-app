@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CompareTable } from "./compare-table";
 import { FixtureStrip } from "./fixture-strip";
-import { LineChart, SERIES_COLORS } from "./line-chart";
+import { LineChart } from "./line-chart";
 import { SearchBar } from "./search-bar";
 import {
   badgeUrl,
@@ -14,6 +14,7 @@ import {
   MAX_COMPARE,
   type ComparePlayer,
 } from "@/lib/api";
+import { kitColors, needsOutline } from "@/lib/kit-colors";
 
 type Metric =
   | "total_points"
@@ -133,7 +134,13 @@ export function PlayerCompare() {
   };
 
   const players = shown.filter((p) => ids.includes(p.id));
-  const color = (id: number) => SERIES_COLORS[ids.indexOf(id)] ?? "#737373";
+  // each player's club kit colour: home shirt, else away, else third kit
+  // when an earlier player already has a similar colour (selection order)
+  const kit = kitColors(players.map((p) => p.team_short));
+  const color = (id: number) => {
+    const i = players.findIndex((p) => p.id === id);
+    return i >= 0 ? kit[i] : "#737373";
+  };
   const nameOf = (id: number) =>
     names[id] ?? shown.find((p) => p.id === id)?.web_name ?? `#${id}`;
   // the last response is for a different selection until the new one lands
@@ -173,7 +180,7 @@ export function PlayerCompare() {
                 className="border-border bg-surface inline-flex items-center gap-2 rounded-full border py-1 pr-2 pl-3 text-sm"
               >
                 <span
-                  className="inline-block h-2 w-2 rounded-full"
+                  className="border-muted inline-block h-2.5 w-2.5 rounded-full border"
                   style={{ background: color(id) }}
                 />
                 {nameOf(id)}
@@ -219,7 +226,14 @@ export function PlayerCompare() {
               <div
                 key={p.id}
                 className="border-border bg-surface rounded-lg border p-3"
-                style={{ borderTopColor: color(p.id), borderTopWidth: 3 }}
+                style={{
+                  borderTopColor: color(p.id),
+                  borderTopWidth: 4,
+                  // white/black kits need an edge to show on the card
+                  boxShadow: needsOutline(color(p.id))
+                    ? "inset 0 1px 0 #71717a"
+                    : undefined,
+                }}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
