@@ -73,7 +73,6 @@ jobs:
 
       - name: Deploy frontend preview pointed at the preview backend
         if: vars.VERCEL_FRONTEND_PREVIEWS == 'true'
-        working-directory: frontend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
