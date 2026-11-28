@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from .config import settings
 from .db import get_db
 from .etl import refresh
+from .fpl_client import get_entry, get_league_standings, get_picks
 from .models import (
     Fixture,
     Gameweek,
@@ -778,6 +779,132 @@ def match_timeline(match_id: str, season: str | None = None, db: Session = Depen
         ],
         "momentum": [_row(r) for r in momentum],
         "xg_by_minute": [_row(r) for r in xg],
+    }
+
+
+# ---------------------------------------------------------------------------
+# FPL managers (official public FPL API, proxied + enriched)
+# ---------------------------------------------------------------------------
+
+
+@api.get("/manager/{entry_id}")
+def manager_profile(entry_id: int, db: Session = Depends(get_db)):
+    """Manager profile + classic leagues, from the official public FPL API."""
+    entry = get_entry(entry_id)
+    if entry is None or "id" not in entry:
+        raise HTTPException(404, "manager not found")
+    leagues = entry.get("leagues", {}).get("classic", [])
+    return {
+        "entry_id": entry["id"],
+        "manager_name": entry.get("player_name"),
+        "team_name": entry.get("name"),
+        "overall_points": entry.get("summary_overall_points"),
+        "overall_rank": entry.get("summary_overall_rank"),
+        "current_event": entry.get("current_event"),
+        "started_event": entry.get("started_event"),
+        "leagues": [
+            {
+                "id": lg["id"],
+                "name": lg["name"],
+                "entry_rank": lg.get("entry_rank"),
+                "entry_last_rank": lg.get("entry_last_rank"),
+            }
+            for lg in leagues
+        ],
+    }
+
+
+@api.get("/manager/{entry_id}/team")
+def manager_team(entry_id: int, gw: int | None = None, db: Session = Depends(get_db)):
+    """A manager's picks for a GW, enriched with our player data."""
+    entry = get_entry(entry_id)
+    if entry is None or "id" not in entry:
+        raise HTTPException(404, "manager not found")
+    gw = gw or entry.get("current_event")
+    if gw is None:
+        raise HTTPException(400, "no gameweek given and manager has none active")
+    picks_data = get_picks(entry_id, gw)
+    if picks_data is None:
+        raise HTTPException(404, f"no picks found for GW{gw}")
+
+    season = _latest_season(db)
+    stats_gw = _latest_gw(db, season)
+    element_ids = [p["element"] for p in picks_data.get("picks", [])]
+    rows = db.execute(
+        select(Player, PlayerStats, Team.name.label("team_name"))
+        .join(
+            PlayerStats,
+            (PlayerStats.season == Player.season)
+            & (PlayerStats.id == Player.player_id)
+            & (PlayerStats.gw == stats_gw),
+        )
+        .join(Team, (Team.season == Player.season) & (Team.code == Player.team_code))
+        .where(Player.season == season, Player.player_id.in_(element_ids))
+    ).all()
+    by_id = {p.player_id: (p, st, tn) for p, st, tn in rows}
+
+    picks = []
+    for pick in picks_data.get("picks", []):
+        p, st, team_name = by_id.get(pick["element"], (None, None, None))
+        picks.append(
+            {
+                "element": pick["element"],
+                "squad_position": pick["position"],  # 1-11 starters, 12-15 bench
+                "is_captain": pick["is_captain"],
+                "is_vice_captain": pick["is_vice_captain"],
+                "multiplier": pick["multiplier"],
+                "web_name": p.web_name if p else f"#{pick['element']}",
+                "team_code": p.team_code if p else None,
+                "team_name": team_name,
+                "position": p.position if p else None,
+                "photo_url": player_photo_url(p.player_code) if p else None,
+                "now_cost": st.now_cost if st else None,
+                "total_points": st.total_points if st else None,
+                "form": st.form if st else None,
+            }
+        )
+    picks.sort(key=lambda p: p["squad_position"])
+
+    picks_entry = picks_data.get("entry_history", {})
+    return {
+        "entry_id": entry_id,
+        "team_name": entry.get("name"),
+        "manager_name": entry.get("player_name"),
+        "gw": gw,
+        "gw_points": picks_entry.get("points"),
+        "event_transfers": picks_entry.get("event_transfers"),
+        "event_transfers_cost": picks_entry.get("event_transfers_cost"),
+        "bank": (picks_entry.get("bank") or 0) / 10,
+        "squad_value": (picks_entry.get("value") or 0) / 10,
+        "overall_rank": picks_entry.get("overall_rank"),
+        "picks": picks,
+    }
+
+
+@api.get("/leagues/{league_id}/standings")
+def league_standings(league_id: int, page: int = Query(1, ge=1)):
+    """Classic league standings, proxied from the official public FPL API."""
+    data = get_league_standings(league_id, page)
+    if data is None or "standings" not in data:
+        raise HTTPException(404, "league not found")
+    st = data["standings"]
+    return {
+        "league_id": league_id,
+        "league_name": data.get("league", {}).get("name"),
+        "page": page,
+        "has_next": st.get("has_next", False),
+        "standings": [
+            {
+                "rank": r["rank"],
+                "last_rank": r["last_rank"],
+                "entry": r["entry"],
+                "entry_name": r["entry_name"],
+                "player_name": r["player_name"],
+                "event_total": r["event_total"],
+                "total": r["total"],
+            }
+            for r in st.get("results", [])
+        ],
     }
 
 
