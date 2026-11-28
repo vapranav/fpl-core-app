@@ -70,9 +70,13 @@ To work against prod data without a local seed, set
    mini-repo in `backend/tests/conftest.py` (covers both dataset layouts),
    then assert in `test_api.py` / `test_etl.py`. Give fixture players
    distinct, deterministic values so ordering assertions are stable.
-4. **Visual changes need browser verification** before you open the PR —
+4. **New Python imports go in `requirements.txt`**, not just
+   `requirements-dev.txt` — the Docker image installs the former, and a
+   dev-only import crashes the deployed app on boot (this actually happened;
+   the PR preview environment caught it).
+5. **Visual changes need browser verification** before you open the PR —
    serve the production build and check the actual page, desktop and 390px.
-5. Delete your branch after merge (or rely on GitHub's auto-delete).
+6. Branches auto-delete on merge (repo setting).
 
 ## Preview environments
 

@@ -4,6 +4,7 @@ on:
   release:
     types: [published]
   workflow_dispatch: # manual escape hatch: Actions -> Deploy -> Run workflow
+  workflow_call:    # reusable: called by tag.yml on every merge to main
 
 jobs:
   deploy:
