@@ -1,10 +1,16 @@
 """Application configuration via environment variables."""
 
+from pathlib import Path
+
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # ./.env (the working directory) and backend/.env; real env vars win over both
+    model_config = SettingsConfigDict(env_file=(".env", BACKEND_DIR / ".env"), extra="ignore")
 
     # SQLite everywhere: ./fpl.db locally, /data/fpl.db on the Fly volume
     database_url: str = "sqlite:///./fpl.db"
@@ -25,6 +31,17 @@ class Settings(BaseSettings):
 
     # if set, /api/admin/* requires header X-Admin-Token with this value
     admin_token: str = ""
+
+    # LLM features (Claude). Bring your own key from console.anthropic.com;
+    # without one, LLM-backed endpoints should report themselves unavailable.
+    # SecretStr keeps the key out of logs and reprs: read it with
+    # settings.anthropic_api_key.get_secret_value().
+    anthropic_api_key: SecretStr = SecretStr("")
+    llm_model: str = "claude-opus-5-5"
+
+    @property
+    def llm_enabled(self) -> bool:
+        return bool(self.anthropic_api_key.get_secret_value().strip())
 
     @property
     def season_list(self) -> list[str]:

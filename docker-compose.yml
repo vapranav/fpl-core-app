@@ -7,6 +7,9 @@ services:
       REFRESH_HOUR: "8,18"
       REFRESH_MINUTE: "5"
       ADMIN_TOKEN: ""
+      # from your shell or the repo-root .env; empty disables LLM features
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-claude-opus-5-5}
     volumes:
       - fpldata:/data
     ports:
