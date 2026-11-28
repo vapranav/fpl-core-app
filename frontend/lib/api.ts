@@ -421,8 +421,8 @@ export class ApiRequestError extends Error {
 
 // plain fetch (no Next cache): manager data is live and usually loaded
 // client-side, where the `next` fetch options do not apply anyway
-async function getLive<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`);
+async function getLive<T>(path: string, headers?: HeadersInit): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, { headers });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const detail = typeof body?.detail === "string" ? body.detail : null;
@@ -515,6 +515,68 @@ export function getManagerTeam(
   gw?: number,
 ): Promise<ManagerTeam> {
   return getLive(`/api/manager/${entryId}/team${gw ? `?gw=${gw}` : ""}`);
+}
+
+// ---- token-protected (the user's own FPL access token) ----------------------
+
+export interface FplMe {
+  entry_id: number;
+  manager_name: string | null;
+}
+
+export interface PrivatePick {
+  element: number;
+  squad_position: number;
+  is_captain: boolean;
+  is_vice_captain: boolean;
+  multiplier: number | null;
+  web_name: string;
+  team_code: number | null;
+  team_name: string | null;
+  team_short: string | null;
+  position: string | null;
+  photo_url: string | null;
+  now_cost: number | null;
+  form: number | null;
+  total_points: number | null;
+  selling_price: number | null; // £m
+  purchase_price: number | null; // £m
+}
+
+export interface PrivateChip {
+  name: string;
+  status: "available" | "played" | "unavailable" | string | null;
+  played_events: number[];
+  start_event: number | null;
+  stop_event: number | null;
+  is_pending: boolean;
+}
+
+export interface PrivateTeam {
+  entry_id: number;
+  picks: PrivatePick[];
+  transfers: {
+    free: number | null; // null while unlimited (wildcard / free hit)
+    made: number | null;
+    cost: number | null;
+    status: string | null;
+    bank: number | null; // £m
+    value: number | null; // £m, selling value
+  };
+  chips: PrivateChip[];
+}
+
+const tokenHeader = (token: string) => ({ "X-FPL-Token": token });
+
+export function getMe(token: string): Promise<FplMe> {
+  return getLive("/api/me", tokenHeader(token));
+}
+
+export function getPrivateTeam(
+  entryId: number,
+  token: string,
+): Promise<PrivateTeam> {
+  return getLive(`/api/manager/${entryId}/my-team`, tokenHeader(token));
 }
 
 export function getLeagueStandings(
