@@ -25,7 +25,12 @@ jobs:
       - name: Create preview app if missing
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: flyctl status -a "$APP" >/dev/null 2>&1 || flyctl apps create "$APP" --org personal
+        run: |
+          flyctl status -a "$APP" >/dev/null 2>&1 || flyctl apps create "$APP" --org personal
+          # one machine: preview SQLite lives in the container, so a second
+          # (HA) machine would hold a DIFFERENT database and round-robin
+          # proxying would flake the smoke gate
+          flyctl scale count 1 --yes -a "$APP" || true
 
       - name: Deploy preview
         working-directory: backend
@@ -46,13 +51,15 @@ jobs:
           curl -sf "$URL/api/health" || { echo "app never came up"; exit 1; }
 
           echo "== waiting for bootstrap ingestion (all 3 seasons, ~2 min) =="
-          for i in $(seq 1 72); do
-            n=$(curl -sf "$URL/api/seasons" | jq '.seasons | length' || echo 0)
+          n=0
+          for i in $(seq 1 90); do
+            n=$(curl -sf "$URL/api/seasons" | jq '.seasons | length' 2>/dev/null || echo 0)
+            [[ "$n" =~ ^[0-9]+$ ]] || n=0
             [ "$n" -ge 3 ] && break
             sleep 5
           done
-          n=$(curl -sf "$URL/api/seasons" | jq '.seasons | length')
-          [ "$n" -ge 3 ] || { echo "ingestion never finished"; exit 1; }
+          [ "$n" -ge 3 ] || { echo "ingestion never finished (last count: $n)"; exit 1; }
+          echo "ingestion done: $n seasons"
 
           echo "== endpoint smoke =="
           fail=0
