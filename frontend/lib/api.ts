@@ -708,6 +708,95 @@ export function getPriceChanges(): Promise<PriceChanges> {
   return getLive("/api/prices");
 }
 
+// ---- fixture difficulty (official FPL API, live) ----------------------------
+
+export interface FdrFixture {
+  event: number;
+  opponent_id: number;
+  opponent_short: string;
+  opponent_code: number;
+  is_home: boolean;
+  difficulty: number; // 1 easiest – 5 hardest
+  kickoff_time: string | null;
+  finished: boolean;
+}
+
+export interface FdrTeam {
+  id: number;
+  code: number;
+  name: string;
+  short_name: string;
+  fixtures: FdrFixture[];
+}
+
+export interface FdrResponse {
+  events: {
+    id: number;
+    name: string;
+    deadline_time: string | null;
+    finished: boolean;
+  }[];
+  next_event: number | null;
+  teams: FdrTeam[];
+}
+
+export function getFdr(): Promise<FdrResponse> {
+  return getLive("/api/fdr");
+}
+
+// ---- head-to-head (football-data.co.uk, league meetings since 1993-94) ------
+
+export interface H2HSide {
+  id: number;
+  code: number;
+  name: string;
+  short_name: string;
+}
+
+export interface H2HMatch {
+  date: string; // ISO date
+  season: string; // "2025-26"
+  competition: string;
+  home: string;
+  away: string;
+  home_score: number;
+  away_score: number;
+  home_ht: number | null;
+  away_ht: number | null;
+  home_shots: number | null;
+  away_shots: number | null;
+  home_shots_on_target: number | null;
+  away_shots_on_target: number | null;
+  home_red: number | null;
+  away_red: number | null;
+  referee: string | null;
+  team_is_home: boolean; // from the clicked team's side
+  result: "W" | "D" | "L";
+}
+
+export interface HeadToHead {
+  team: H2HSide;
+  opponent: H2HSide;
+  matches: H2HMatch[];
+  summary: {
+    played: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    goals_for: number;
+    goals_against: number;
+  };
+  source: string;
+}
+
+export function getHeadToHead(
+  team: number,
+  opponent: number,
+  limit = 6,
+): Promise<HeadToHead> {
+  return getLive(`/api/h2h?team=${team}&opponent=${opponent}&limit=${limit}`);
+}
+
 // ---- player comparison (official FPL API + dataset snapshots) ----------------
 
 export const MAX_COMPARE = 5;

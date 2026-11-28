@@ -91,6 +91,11 @@ def get_price_change_history() -> list[dict]:
     return _cached_get("/stats/price-changes/", ttl=300) or []
 
 
+def get_fixtures() -> list[dict]:
+    """Every fixture this season with FPL's difficulty rating for each side."""
+    return _cached_get("/fixtures/", ttl=900) or []
+
+
 def get_element_summary(element_id: int) -> dict | None:
     """A player's per-GW history and upcoming fixtures this season."""
     return _cached_get(f"/element-summary/{element_id}/", ttl=300)

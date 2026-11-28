@@ -7,10 +7,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.orm import Session
 
+from . import h2h
 from .compare import build_player
 from .config import settings
 from .db import get_db
 from .etl import refresh
+from .fdr import build_fdr
 from .fpl_client import (
     FplAuthError,
     get_bootstrap,
@@ -18,6 +20,7 @@ from .fpl_client import (
     get_entry,
     get_entry_history,
     get_event_live,
+    get_fixtures,
     get_league_standings,
     get_me,
     get_my_team,
@@ -1215,6 +1218,62 @@ def price_changes():
     fetched_at, boot = _upstream(get_bootstrap)
     history = _upstream(get_price_change_history)
     return build_price_changes(fetched_at, boot, history)
+
+
+@api.get("/fdr")
+def fixture_difficulty():
+    """FPL's fixture difficulty rating for every team's fixtures this season."""
+    _, boot = _upstream(get_bootstrap)
+    return build_fdr(boot, _upstream(get_fixtures))
+
+
+@api.get("/h2h")
+def head_to_head(
+    team: int = Query(..., gt=0, description="FPL team id"),
+    opponent: int = Query(..., gt=0, description="FPL team id"),
+    limit: int = Query(6, ge=1, le=20),
+):
+    """The last league meetings (Premier League and second tier, since 1993-94)
+    of two clubs, from the clicked team's side, via football-data.co.uk."""
+    if team == opponent:
+        raise HTTPException(400, "pick two different teams")
+    _, boot = _upstream(get_bootstrap)
+    teams = {t["id"]: t for t in boot["teams"]}
+    if team not in teams or opponent not in teams:
+        raise HTTPException(404, "team not found")
+    me, opp = teams[team], teams[opponent]
+    me_fd, opp_fd = h2h.fd_name(me["name"]), h2h.fd_name(opp["name"])
+    try:
+        found = h2h.meetings(me_fd, opp_fd, limit)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"head-to-head source unavailable: {e}") from e
+    if not found:
+        unknown = [n for n in (me_fd, opp_fd) if n not in h2h.known_names()]
+        if unknown:
+            logging.getLogger("fpl.h2h").warning("no football-data.co.uk name for %s", unknown)
+
+    matches, summary = [], {"wins": 0, "draws": 0, "losses": 0, "goals_for": 0, "goals_against": 0}
+    for m in found:
+        at_home = m["home"] == me_fd
+        gf, ga = (
+            (m["home_score"], m["away_score"]) if at_home else (m["away_score"], m["home_score"])
+        )
+        result = "W" if gf > ga else "L" if gf < ga else "D"
+        summary[{"W": "wins", "D": "draws", "L": "losses"}[result]] += 1
+        summary["goals_for"] += gf
+        summary["goals_against"] += ga
+        matches.append({**m, "team_is_home": at_home, "result": result})
+
+    def side(t):
+        return {"id": t["id"], "code": t["code"], "name": t["name"], "short_name": t["short_name"]}
+
+    return {
+        "team": side(me),
+        "opponent": side(opp),
+        "matches": matches,
+        "summary": {"played": len(matches), **summary},
+        "source": "football-data.co.uk",
+    }
 
 
 @api.get("/compare")
