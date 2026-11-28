@@ -398,3 +398,107 @@ export const SORTABLE: { key: string; label: string; hide?: string }[] = [
   { key: "ict_index", label: "ICT", hide: "hidden lg:table-cell" },
   { key: "points_per_game", label: "PPG", hide: "hidden lg:table-cell" },
 ];
+
+// ---- FPL manager (official public FPL API, proxied) -------------------------
+
+export class ApiRequestError extends Error {
+  readonly status: number;
+
+  constructor(status: number, path: string) {
+    super(`API ${status} for ${path}`);
+    this.name = "ApiRequestError";
+    this.status = status;
+  }
+}
+
+// plain fetch (no Next cache): manager data is live and usually loaded
+// client-side, where the `next` fetch options do not apply anyway
+async function getLive<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`);
+  if (!res.ok) throw new ApiRequestError(res.status, path);
+  return res.json();
+}
+
+export interface ManagerLeague {
+  id: number;
+  name: string;
+  entry_rank: number | null;
+  entry_last_rank: number | null;
+}
+
+export interface ManagerProfile {
+  entry_id: number;
+  manager_name: string | null;
+  team_name: string | null;
+  overall_points: number | null;
+  overall_rank: number | null;
+  current_event: number | null;
+  started_event: number | null;
+  leagues: ManagerLeague[];
+}
+
+export interface SquadPick {
+  element: number;
+  squad_position: number; // 1-11 starters, 12-15 bench
+  is_captain: boolean;
+  is_vice_captain: boolean;
+  multiplier: number;
+  web_name: string;
+  team_code: number | null;
+  team_name: string | null;
+  position: string | null;
+  photo_url: string | null;
+  now_cost: number | null;
+  total_points: number | null;
+  form: number | null;
+}
+
+export interface ManagerTeam {
+  entry_id: number;
+  team_name: string | null;
+  manager_name: string | null;
+  gw: number;
+  gw_points: number | null;
+  event_transfers: number | null;
+  event_transfers_cost: number | null;
+  bank: number; // £m
+  squad_value: number; // £m
+  overall_rank: number | null;
+  picks: SquadPick[];
+}
+
+export interface LeagueStandingRow {
+  rank: number;
+  last_rank: number | null;
+  entry: number;
+  entry_name: string;
+  player_name: string;
+  event_total: number;
+  total: number;
+}
+
+export interface LeagueStandings {
+  league_id: number;
+  league_name: string | null;
+  page: number;
+  has_next: boolean;
+  standings: LeagueStandingRow[];
+}
+
+export function getManagerProfile(entryId: number): Promise<ManagerProfile> {
+  return getLive(`/api/manager/${entryId}`);
+}
+
+export function getManagerTeam(
+  entryId: number,
+  gw?: number,
+): Promise<ManagerTeam> {
+  return getLive(`/api/manager/${entryId}/team${gw ? `?gw=${gw}` : ""}`);
+}
+
+export function getLeagueStandings(
+  leagueId: number,
+  page = 1,
+): Promise<LeagueStandings> {
+  return getLive(`/api/leagues/${leagueId}/standings?page=${page}`);
+}
