@@ -20,6 +20,11 @@ services:
       API_URL: http://api:8000
       # ...browser-side code must reach the API via the HOST
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      # behind a TLS-inspecting proxy (Zscaler etc.): extract the proxy root
+      # CA to .dev-certs/ and set NODE_EXTRA_CA_CERTS in .env (see CONTRIBUTING)
+      NODE_EXTRA_CA_CERTS: ${NODE_EXTRA_CA_CERTS:-}
+    volumes:
+      - ./.dev-certs:/etc/ssl/extra:ro
     ports:
       - "3000:3000"
     depends_on:

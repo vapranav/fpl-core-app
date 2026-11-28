@@ -1,5 +1,8 @@
 FROM node:22-alpine
 
+# CA bundle: next/image fetches PL CDN images over HTTPS server-side
+RUN apk add --no-cache ca-certificates
+
 WORKDIR /srv
 
 # NEXT_PUBLIC_* is inlined at build time

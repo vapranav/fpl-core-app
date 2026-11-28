@@ -57,6 +57,23 @@ npm run dev                          # http://localhost:3000
 To work against prod data without a local seed, set
 `NEXT_PUBLIC_API_URL=https://fpl-core-api.fly.dev` (read-only usage).
 
+### Behind a TLS-inspecting proxy (Zscaler & co.)
+
+Corporate networks often re-sign TLS with a proxy root CA. Node in the
+frontend container then fails `UNABLE_TO_GET_ISSUER_CERT_LOCALLY` when the
+image optimizer fetches photos from the PL CDN. Fix (dev only):
+
+```bash
+mkdir -p .dev-certs
+security find-certificate -c "Zscaler Root CA" -p \
+  /Library/Keychains/System.keychain > .dev-certs/zscaler-root.pem
+echo "NODE_EXTRA_CA_CERTS=/etc/ssl/extra/zscaler-root.pem" >> .env
+docker compose up -d --force-recreate frontend
+```
+
+`.dev-certs/` is gitignored; compose mounts it into the container and Node
+trusts the proxy root. Never commit proxy certs or set this in production.
+
 ## Workflow rules
 
 1. **Everything goes through PRs.** No direct pushes to `main`. Branch naming:
