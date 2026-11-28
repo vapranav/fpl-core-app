@@ -84,8 +84,14 @@ def _latest_gw(db: Session, season: str) -> int:
 
 
 @api.get("/health")
-def health():
-    return {"status": "ok"}
+def health(db: Session = Depends(get_db)):
+    last = db.scalar(
+        select(IngestionRun.finished_at)
+        .where(IngestionRun.status == "success")
+        .order_by(IngestionRun.id.desc())
+        .limit(1)
+    )
+    return {"status": "ok", "last_refresh": last}
 
 
 @api.get("/seasons")

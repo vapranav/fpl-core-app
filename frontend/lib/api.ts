@@ -73,6 +73,13 @@ async function get<T>(path: string): Promise<T> {
   return res.json();
 }
 
+export function getHealth(): Promise<{
+  status: string;
+  last_refresh: string | null;
+}> {
+  return get("/api/health");
+}
+
 export function getPlayers(q: PlayersQuery): Promise<PlayersResponse> {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(q)) if (v) qs.set(k, v);
