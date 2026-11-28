@@ -7,17 +7,23 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.orm import Session
 
+from . import h2h
 from .compare import build_player
 from .config import settings
 from .db import get_db
 from .etl import refresh
+from .fdr import build_fdr
 from .fpl_client import (
+    FplAuthError,
     get_bootstrap,
     get_element_summary,
     get_entry,
     get_entry_history,
     get_event_live,
+    get_fixtures,
     get_league_standings,
+    get_me,
+    get_my_team,
     get_picks,
     get_price_change_history,
 )
@@ -46,6 +52,7 @@ from .models import (
 )
 from .prices import build_price_changes
 from .schemas import player_photo_url, team_badge_url
+from .transfers import build_suggestions
 
 api = APIRouter(prefix="/api")
 
@@ -855,21 +862,7 @@ def manager_team(entry_id: int, gw: int | None = None, db: Session = Depends(get
     if picks_data is None:
         raise HTTPException(404, f"no picks found for GW{gw}")
 
-    season = _latest_season(db)
-    stats_gw = _latest_gw(db, season)
-    element_ids = [p["element"] for p in picks_data.get("picks", [])]
-    rows = db.execute(
-        select(Player, PlayerStats, Team.name.label("team_name"), Team.short_name)
-        .join(
-            PlayerStats,
-            (PlayerStats.season == Player.season)
-            & (PlayerStats.id == Player.player_id)
-            & (PlayerStats.gw == stats_gw),
-        )
-        .join(Team, (Team.season == Player.season) & (Team.code == Player.team_code))
-        .where(Player.season == season, Player.player_id.in_(element_ids))
-    ).all()
-    by_id = {p.player_id: (p, st, tn, short) for p, st, tn, short in rows}
+    by_id = _squad_players(db, [p["element"] for p in picks_data.get("picks", [])])
     live = _live_stats(gw)
 
     picks = []
@@ -917,6 +910,121 @@ def manager_team(entry_id: int, gw: int | None = None, db: Session = Depends(get
         "automatic_subs": [
             {"element_in": s["element_in"], "element_out": s["element_out"]}
             for s in picks_data.get("automatic_subs", [])
+        ],
+    }
+
+
+def _squad_players(db: Session, element_ids: list[int]) -> dict[int, tuple]:
+    """element id -> (Player, PlayerStats, team name, team short name), latest GW."""
+    season = _latest_season(db)
+    stats_gw = _latest_gw(db, season)
+    rows = db.execute(
+        select(Player, PlayerStats, Team.name.label("team_name"), Team.short_name)
+        .join(
+            PlayerStats,
+            (PlayerStats.season == Player.season)
+            & (PlayerStats.id == Player.player_id)
+            & (PlayerStats.gw == stats_gw),
+        )
+        .join(Team, (Team.season == Player.season) & (Team.code == Player.team_code))
+        .where(Player.season == season, Player.player_id.in_(element_ids))
+    ).all()
+    return {p.player_id: (p, st, tn, short) for p, st, tn, short in rows}
+
+
+# ---- authenticated (the user's own FPL access token) ------------------------
+
+
+def _fpl_token(x_fpl_token: str | None = Header(None)) -> str:
+    """The caller's FPL access token, passed through to FPL and never stored."""
+    token = (x_fpl_token or "").strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+    if not token:
+        raise HTTPException(401, "an FPL access token is required (X-FPL-Token header)")
+    return token
+
+
+def _authed(fn, *args):
+    """_upstream for token-protected endpoints: a rejected token becomes a 401."""
+    try:
+        return _upstream(fn, *args)
+    except FplAuthError as e:
+        raise HTTPException(
+            401, "FPL rejected the access token - it may have expired; copy a fresh one"
+        ) from e
+
+
+def _money(tenths) -> float | None:
+    return None if tenths is None else tenths / 10
+
+
+@api.get("/me")
+def me(token: str = Depends(_fpl_token)):
+    """Which FPL entry the token belongs to."""
+    data = _authed(get_me, token)
+    player = (data or {}).get("player") or {}
+    if not player.get("entry"):
+        raise HTTPException(404, "this FPL account has no team")
+    name = f"{player.get('first_name') or ''} {player.get('last_name') or ''}".strip()
+    return {"entry_id": player["entry"], "manager_name": name or None}
+
+
+@api.get("/manager/{entry_id}/my-team")
+def manager_my_team(entry_id: int, token: str = Depends(_fpl_token), db: Session = Depends(get_db)):
+    """The private view of a manager's own squad: the team as it stands for the
+    next deadline, selling prices, free transfers and chip availability."""
+    data = _authed(get_my_team, entry_id, token)
+    if data is None:
+        raise HTTPException(404, "manager not found")
+
+    by_id = _squad_players(db, [p["element"] for p in data.get("picks", [])])
+    picks = []
+    for pick in sorted(data.get("picks", []), key=lambda p: p["position"]):
+        p, st, team_name, team_short = by_id.get(pick["element"], (None, None, None, None))
+        picks.append(
+            {
+                "element": pick["element"],
+                "squad_position": pick["position"],
+                "is_captain": pick.get("is_captain", False),
+                "is_vice_captain": pick.get("is_vice_captain", False),
+                "multiplier": pick.get("multiplier"),
+                "web_name": p.web_name if p else f"#{pick['element']}",
+                "team_code": p.team_code if p else None,
+                "team_name": team_name,
+                "team_short": team_short,
+                "position": p.position if p else None,
+                "photo_url": player_photo_url(p.player_code) if p else None,
+                "now_cost": st.now_cost if st else None,
+                "form": st.form if st else None,
+                "total_points": st.total_points if st else None,
+                "selling_price": _money(pick.get("selling_price")),
+                "purchase_price": _money(pick.get("purchase_price")),
+            }
+        )
+
+    t = data.get("transfers") or {}
+    return {
+        "entry_id": entry_id,
+        "picks": picks,
+        "transfers": {
+            "free": t.get("limit"),  # None while unlimited (wildcard / free hit)
+            "made": t.get("made"),
+            "cost": t.get("cost"),  # points hit per extra transfer
+            "status": t.get("status"),
+            "bank": _money(t.get("bank")),
+            "value": _money(t.get("value")),
+        },
+        "chips": [
+            {
+                "name": c.get("name"),
+                "status": c.get("status_for_entry"),  # available / played / unavailable
+                "played_events": c.get("played_by_entry") or [],
+                "start_event": c.get("start_event"),
+                "stop_event": c.get("stop_event"),
+                "is_pending": c.get("is_pending", False),
+            }
+            for c in data.get("chips", [])
         ],
     }
 
@@ -1111,6 +1219,97 @@ def price_changes():
     fetched_at, boot = _upstream(get_bootstrap)
     history = _upstream(get_price_change_history)
     return build_price_changes(fetched_at, boot, history)
+
+
+@api.get("/manager/{entry_id}/transfer-suggestions")
+def transfer_suggestions(entry_id: int, x_fpl_token: str | None = Header(None)):
+    """Squad players worth moving on (can't play, or being sold over fixtures or
+    form) and in-budget replacements close to a price rise. With the manager's
+    FPL token (X-FPL-Token) the budget uses real selling prices and bank;
+    without it, current prices and last gameweek's bank stand in."""
+    if x_fpl_token and x_fpl_token.strip():
+        data = _authed(get_my_team, entry_id, _fpl_token(x_fpl_token))
+        if data is None:
+            raise HTTPException(404, "manager not found")
+        squad = [
+            {
+                "element": p["element"],
+                "purchase_price": p.get("purchase_price"),
+                "selling_price": p.get("selling_price"),
+            }
+            for p in data.get("picks", [])
+        ]
+        bank = (data.get("transfers") or {}).get("bank") or 0
+        exact = True
+    else:
+        entry = _upstream(get_entry, entry_id)
+        if entry is None or "id" not in entry:
+            raise HTTPException(404, "manager not found")
+        gw = entry.get("current_event")
+        picks = _upstream(get_picks, entry_id, gw) if gw else None
+        if picks is None:
+            raise HTTPException(404, "this manager has no squad yet")
+        squad = [{"element": p["element"], "purchase_price": None} for p in picks.get("picks", [])]
+        bank = (picks.get("entry_history") or {}).get("bank") or 0
+        exact = False
+    fetched_at, boot = _upstream(get_bootstrap)
+    return build_suggestions(boot, _upstream(get_fixtures), squad, bank, fetched_at, exact)
+
+
+@api.get("/fdr")
+def fixture_difficulty():
+    """FPL's fixture difficulty rating for every team's fixtures this season."""
+    _, boot = _upstream(get_bootstrap)
+    return build_fdr(boot, _upstream(get_fixtures))
+
+
+@api.get("/h2h")
+def head_to_head(
+    team: int = Query(..., gt=0, description="FPL team id"),
+    opponent: int = Query(..., gt=0, description="FPL team id"),
+    limit: int = Query(6, ge=1, le=20),
+):
+    """The last league meetings (Premier League and second tier, since 1993-94)
+    of two clubs, from the clicked team's side, via football-data.co.uk."""
+    if team == opponent:
+        raise HTTPException(400, "pick two different teams")
+    _, boot = _upstream(get_bootstrap)
+    teams = {t["id"]: t for t in boot["teams"]}
+    if team not in teams or opponent not in teams:
+        raise HTTPException(404, "team not found")
+    me, opp = teams[team], teams[opponent]
+    me_fd, opp_fd = h2h.fd_name(me["name"]), h2h.fd_name(opp["name"])
+    try:
+        found = h2h.meetings(me_fd, opp_fd, limit)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"head-to-head source unavailable: {e}") from e
+    if not found:
+        unknown = [n for n in (me_fd, opp_fd) if n not in h2h.known_names()]
+        if unknown:
+            logging.getLogger("fpl.h2h").warning("no football-data.co.uk name for %s", unknown)
+
+    matches, summary = [], {"wins": 0, "draws": 0, "losses": 0, "goals_for": 0, "goals_against": 0}
+    for m in found:
+        at_home = m["home"] == me_fd
+        gf, ga = (
+            (m["home_score"], m["away_score"]) if at_home else (m["away_score"], m["home_score"])
+        )
+        result = "W" if gf > ga else "L" if gf < ga else "D"
+        summary[{"W": "wins", "D": "draws", "L": "losses"}[result]] += 1
+        summary["goals_for"] += gf
+        summary["goals_against"] += ga
+        matches.append({**m, "team_is_home": at_home, "result": result})
+
+    def side(t):
+        return {"id": t["id"], "code": t["code"], "name": t["name"], "short_name": t["short_name"]}
+
+    return {
+        "team": side(me),
+        "opponent": side(opp),
+        "matches": matches,
+        "summary": {"played": len(matches), **summary},
+        "source": "football-data.co.uk",
+    }
 
 
 @api.get("/compare")

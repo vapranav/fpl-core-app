@@ -4,10 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEntryId } from "./entry-id";
+import { OWNED_ROW, YoursBadge, useOwnedPlayers } from "./owned-players";
 import { inputClass } from "./select";
+import { TransferSuggestions } from "./transfer-suggestions";
 import {
   badgeUrl,
-  getManagerTeam,
   getPriceChanges,
   type PricePlayer,
   type PricePrediction,
@@ -44,7 +45,6 @@ const STATUS: Record<string, string> = {
 const RISE = "bg-green-600/15 text-green-700 dark:text-green-400";
 const DROP = "bg-red-600/15 text-red-700 dark:text-red-400";
 const NEUTRAL = "bg-border text-foreground";
-const OWNED_ROW = "bg-accent/5 shadow-[inset_3px_0_0_0_var(--accent)]";
 
 const money = (tenths: number) => `£${(tenths / 10).toFixed(1)}m`;
 // keep FPL's sign on zero too ("-0.0%" is a tiny drift towards a drop)
@@ -59,14 +59,6 @@ type State =
   | { status: "loading" }
   | { status: "ok"; data: PriceData }
   | { status: "error" };
-
-function YoursBadge() {
-  return (
-    <span className="bg-accent text-background ml-1.5 rounded px-1 py-px text-[10px] font-semibold tracking-wide uppercase">
-      Yours
-    </span>
-  );
-}
 
 function Pill({ text, cls }: { text: string; cls: string }) {
   return (
@@ -328,15 +320,137 @@ function RecentTable({
   );
 }
 
+const RECENT_DAYS = 7;
+
+function SquadRow({
+  p,
+  right,
+  cls,
+}: {
+  p: PricePlayer;
+  right: string;
+  cls: string;
+}) {
+  return (
+    <li className="flex items-center justify-between gap-2 py-1.5">
+      <div className="flex min-w-0 items-center gap-2">
+        <Image src={badgeUrl(p.team_code)} alt="" width={16} height={16} />
+        <Link
+          href={`/players/${p.id}`}
+          className="truncate font-medium hover:underline"
+        >
+          {p.web_name}
+        </Link>
+        <span className="text-muted text-xs whitespace-nowrap">
+          {p.team_short} · {money(p.now_cost)}
+        </span>
+      </div>
+      <Pill text={right} cls={cls} />
+    </li>
+  );
+}
+
+function SquadColumn({
+  title,
+  empty,
+  children,
+}: {
+  title: string;
+  empty: string;
+  children: React.ReactNode[];
+}) {
+  return (
+    <div className="min-w-0">
+      <h3 className="text-muted mb-1 text-xs font-semibold tracking-wide uppercase">
+        {title} <span className="font-normal">({children.length})</span>
+      </h3>
+      {children.length ? (
+        <ul className="divide-border divide-y text-sm">{children}</ul>
+      ) : (
+        <p className="text-muted py-1.5 text-sm">{empty}</p>
+      )}
+    </div>
+  );
+}
+
+/** The connected squad's players FPL expects to change tonight, and recent changes. */
+function SquadSummary({
+  data,
+  owned,
+}: {
+  data: PriceData;
+  owned: Set<number>;
+}) {
+  const mine = data.predictions.filter((r) => owned.has(r.id));
+  const strength = (r: PricePrediction) =>
+    Math.abs(r.predicted_progress ?? r.progress);
+  const rising = mine
+    .filter((r) => r.direction === "rise")
+    .sort((a, b) => strength(b) - strength(a));
+  const dropping = mine
+    .filter((r) => r.direction === "drop")
+    .sort((a, b) => strength(b) - strength(a));
+  // relative to the fetch, so render stays pure
+  const since = new Date(data.fetched_at).getTime() - RECENT_DAYS * 86400_000;
+  const recent = data.recent_changes.filter(
+    (c) => owned.has(c.id) && new Date(c.changed_at).getTime() >= since,
+  );
+
+  return (
+    <section className="border-border bg-surface space-y-3 rounded-lg border p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-1">
+        <h2 className="font-semibold">Your squad</h2>
+        <p className="text-muted text-xs">At the next price update</p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <SquadColumn title="Likely to drop" empty="Nobody at risk">
+          {dropping.map((r) => (
+            <SquadRow
+              key={r.id}
+              p={r}
+              cls={DROP}
+              right={pct(r.predicted_progress ?? r.progress)}
+            />
+          ))}
+        </SquadColumn>
+        <SquadColumn title="Likely to rise" empty="Nobody expected to rise">
+          {rising.map((r) => (
+            <SquadRow
+              key={r.id}
+              p={r}
+              cls={RISE}
+              right={pct(r.predicted_progress ?? r.progress)}
+            />
+          ))}
+        </SquadColumn>
+        <SquadColumn
+          title={`Changed, last ${RECENT_DAYS} days`}
+          empty="No recent changes"
+        >
+          {recent.map((c) => {
+            const up = c.cost_after > c.cost_before;
+            return (
+              <SquadRow
+                key={`${c.id}-${c.changed_at}`}
+                p={c}
+                cls={up ? RISE : DROP}
+                right={`${up ? "▲ +" : "▼ "}${((c.cost_after - c.cost_before) / 10).toFixed(1)}`}
+              />
+            );
+          })}
+        </SquadColumn>
+      </div>
+    </section>
+  );
+}
+
 export function PriceChanges() {
   const [state, setState] = useState<State>({ status: "loading" });
   const [entryId] = useEntryId();
-  const [owned, setOwned] = useState<Set<number>>(new Set());
   const [tab, setTab] = useState<Tab>("predictions");
   const [direction, setDirection] = useState<Direction>("all");
   const [position, setPosition] = useState<Position>("all");
   const [search, setSearch] = useState("");
-  const [mineOnly, setMineOnly] = useState(false);
   const [page, setPage] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
 
@@ -350,18 +464,7 @@ export function PriceChanges() {
   // highlight the connected manager's squad (see My Team)
   const currentEvent =
     state.status === "ok" ? state.data.current_event : undefined;
-  useEffect(() => {
-    if (!entryId) return;
-    let cancelled = false;
-    getManagerTeam(Number(entryId), currentEvent ?? undefined)
-      .then((team) => {
-        if (!cancelled) setOwned(new Set(team.picks.map((p) => p.element)));
-      })
-      .catch(() => {}); // highlighting is best-effort
-    return () => {
-      cancelled = true;
-    };
-  }, [entryId, currentEvent]);
+  const owned = useOwnedPlayers(currentEvent ?? undefined);
 
   if (state.status === "loading")
     return (
@@ -377,11 +480,10 @@ export function PriceChanges() {
     );
 
   const d = state.data;
-  const mine = entryId ? owned : new Set<number>();
+  const mine = owned;
   const q = search.trim().toLocaleLowerCase();
   const matches = (p: PricePlayer) =>
     (position === "all" || p.position_short === position) &&
-    (!mineOnly || mine.has(p.id)) &&
     (!q ||
       p.web_name.toLocaleLowerCase().includes(q) ||
       p.team_name.toLocaleLowerCase().includes(q));
@@ -442,6 +544,8 @@ export function PriceChanges() {
         </a>
       </header>
 
+      <TransferSuggestions />
+
       <div className="border-border bg-surface flex flex-wrap items-end justify-between gap-3 rounded-lg border p-4">
         <div>
           <p className="text-muted text-sm">Next price update in</p>
@@ -464,6 +568,8 @@ export function PriceChanges() {
           FPL refreshes predictions every ~15 minutes
         </p>
       </div>
+
+      {mine.size > 0 && <SquadSummary data={d} owned={mine} />}
 
       <div className="flex gap-1">
         {(
@@ -512,16 +618,6 @@ export function PriceChanges() {
           options={POSITIONS}
           onChange={reset(setPosition)}
         />
-        {mine.size > 0 && (
-          <label className="inline-flex cursor-pointer items-center gap-1.5 text-sm">
-            <input
-              type="checkbox"
-              checked={mineOnly}
-              onChange={(e) => reset(setMineOnly)(e.target.checked)}
-            />
-            Only my players
-          </label>
-        )}
         <button
           type="button"
           className="text-muted ml-auto text-sm underline"

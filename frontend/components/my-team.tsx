@@ -5,8 +5,10 @@ import Link from "next/link";
 import { SquadPitch } from "./squad-pitch";
 import { useEffect, useState } from "react";
 import { useEntryId } from "./entry-id";
+import { setFplToken } from "./fpl-token";
 import { LeagueCards } from "./league-cards";
 import { PlayerPhoto } from "./player-photo";
+import { PrivateTeam } from "./private-team";
 import { inputClass } from "./select";
 import {
   ApiRequestError,
@@ -42,7 +44,11 @@ export function MyTeam() {
   return (
     <Connected
       entryId={Number(entryId)}
-      onDisconnect={() => setEntryId(null)}
+      onDisconnect={() => {
+        // the token is tied to this team, so forget it too
+        setFplToken(null);
+        setEntryId(null);
+      }}
     />
   );
 }
@@ -190,6 +196,7 @@ function Connected({
     <>
       <TeamHeader profile={profile} team={team} onDisconnect={onDisconnect} />
       <SquadSection team={team} />
+      <PrivateTeam entryId={entryId} />
       <MyLeagues leagues={profile.leagues} />
     </>
   );

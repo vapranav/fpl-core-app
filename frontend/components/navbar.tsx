@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/players", label: "Players" },
   { href: "/compare", label: "Compare" },
   { href: "/prices", label: "Prices" },
+  { href: "/fdr", label: "FDR" },
   { href: "/differentials", label: "Differentials" },
   { href: "/rotation", label: "Rotation" },
   { href: "/matches", label: "Matches" },

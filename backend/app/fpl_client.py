@@ -1,7 +1,9 @@
 """Client for the official (public) FPL API at fantasy.premierleague.com.
 
-Read-only; the endpoints we use need no auth. Responses are cached in-process
-with short TTLs so a league page doesn't hammer the upstream.
+Read-only. Most endpoints need no auth; responses are cached in-process with
+short TTLs so a league page doesn't hammer the upstream. The few that do need
+auth (``get_me``, ``get_my_team``) take the user's own FPL access token, which
+is passed straight through and never cached, stored or logged.
 """
 
 import time
@@ -89,9 +91,45 @@ def get_price_change_history() -> list[dict]:
     return _cached_get("/stats/price-changes/", ttl=300) or []
 
 
+def get_fixtures() -> list[dict]:
+    """Every fixture this season with FPL's difficulty rating for each side."""
+    return _cached_get("/fixtures/", ttl=900) or []
+
+
 def get_element_summary(element_id: int) -> dict | None:
     """A player's per-GW history and upcoming fixtures this season."""
     return _cached_get(f"/element-summary/{element_id}/", ttl=300)
+
+
+class FplAuthError(Exception):
+    """FPL rejected the access token (missing, expired or for another account)."""
+
+
+def _auth_get(path: str, token: str) -> dict | None:
+    """GET an authenticated endpoint with the user's token; never cached, since
+    the response is private to that token. None on 404."""
+    r = httpx.get(
+        f"{BASE}{path}",
+        headers={"X-Api-Authorization": f"Bearer {token}"},
+        timeout=TIMEOUT,
+    )
+    if r.status_code in (401, 403):
+        raise FplAuthError(r.status_code)
+    if r.status_code == 404:
+        return None
+    r.raise_for_status()
+    return r.json()
+
+
+def get_me(token: str) -> dict | None:
+    """The signed-in account: {player: {entry, first_name, last_name, ...}}."""
+    return _auth_get("/me/", token)
+
+
+def get_my_team(entry_id: int, token: str) -> dict | None:
+    """The squad as it stands for the next deadline, with selling prices, chip
+    availability and free transfers. Only the entry's owner can read it."""
+    return _auth_get(f"/my-team/{entry_id}/", token)
 
 
 def clear_cache() -> None:

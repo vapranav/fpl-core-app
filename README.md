@@ -15,6 +15,10 @@ Live: https://fpl-core-app.vercel.app — API: https://fpl-core-api.fly.dev/docs
   official entry/picks/leagues endpoints are public; the ID lives in your
   browser's localStorage). Squad with photos, captain/vice chips, bank and
   squad value, plus your classic leagues with rank movement.
+  Optionally paste your FPL access token (one click with the
+  [Chrome extension](extension/README.md)) to unlock owner-only data:
+  selling prices, free transfers and remaining chips. The token stays in your
+  browser; the API passes it to FPL per request and never stores or caches it.
 - **League standings** — any classic mini-league, paginated, your own row
   highlighted.
 - **Players explorer** — every player sortable/filterable by points, form,

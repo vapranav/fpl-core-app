@@ -421,8 +421,8 @@ export class ApiRequestError extends Error {
 
 // plain fetch (no Next cache): manager data is live and usually loaded
 // client-side, where the `next` fetch options do not apply anyway
-async function getLive<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`);
+async function getLive<T>(path: string, headers?: HeadersInit): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, { headers });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const detail = typeof body?.detail === "string" ? body.detail : null;
@@ -515,6 +515,68 @@ export function getManagerTeam(
   gw?: number,
 ): Promise<ManagerTeam> {
   return getLive(`/api/manager/${entryId}/team${gw ? `?gw=${gw}` : ""}`);
+}
+
+// ---- token-protected (the user's own FPL access token) ----------------------
+
+export interface FplMe {
+  entry_id: number;
+  manager_name: string | null;
+}
+
+export interface PrivatePick {
+  element: number;
+  squad_position: number;
+  is_captain: boolean;
+  is_vice_captain: boolean;
+  multiplier: number | null;
+  web_name: string;
+  team_code: number | null;
+  team_name: string | null;
+  team_short: string | null;
+  position: string | null;
+  photo_url: string | null;
+  now_cost: number | null;
+  form: number | null;
+  total_points: number | null;
+  selling_price: number | null; // £m
+  purchase_price: number | null; // £m
+}
+
+export interface PrivateChip {
+  name: string;
+  status: "available" | "played" | "unavailable" | string | null;
+  played_events: number[];
+  start_event: number | null;
+  stop_event: number | null;
+  is_pending: boolean;
+}
+
+export interface PrivateTeam {
+  entry_id: number;
+  picks: PrivatePick[];
+  transfers: {
+    free: number | null; // null while unlimited (wildcard / free hit)
+    made: number | null;
+    cost: number | null;
+    status: string | null;
+    bank: number | null; // £m
+    value: number | null; // £m, selling value
+  };
+  chips: PrivateChip[];
+}
+
+const tokenHeader = (token: string) => ({ "X-FPL-Token": token });
+
+export function getMe(token: string): Promise<FplMe> {
+  return getLive("/api/me", tokenHeader(token));
+}
+
+export function getPrivateTeam(
+  entryId: number,
+  token: string,
+): Promise<PrivateTeam> {
+  return getLive(`/api/manager/${entryId}/my-team`, tokenHeader(token));
 }
 
 export function getLeagueStandings(
@@ -644,6 +706,156 @@ export interface PriceChanges {
 
 export function getPriceChanges(): Promise<PriceChanges> {
   return getLive("/api/prices");
+}
+
+// ---- transfer suggestions (official FPL API, live) --------------------------
+
+export interface SuggestionPlayer {
+  id: number;
+  web_name: string;
+  team_code: number;
+  team_short: string;
+  position_short: "GKP" | "DEF" | "MID" | "FWD";
+  now_cost: number; // tenths of £m
+  form: number;
+  status: string;
+  news: string;
+  chance_of_playing: number | null;
+  progress: number;
+  predicted_progress: number | null;
+  likelihood: number;
+  transfers_in_event: number;
+  transfers_out_event: number;
+  fixtures: {
+    event: number;
+    opponent_short: string;
+    is_home: boolean;
+    difficulty: number;
+  }[];
+  avg_fdr: number | null;
+}
+
+export interface SuggestionOption extends SuggestionPlayer {
+  bank_after: number;
+  likely_rise: boolean;
+  priced_out_risk: "rise" | "drop" | "both" | null;
+}
+
+export interface TransferSuggestion {
+  out: SuggestionPlayer & { selling_price: number; likely_drop: boolean };
+  reasons: {
+    kind: "unavailable" | "doubtful" | "selling" | "fixtures" | "form";
+    label: string;
+  }[];
+  budget: number;
+  options: SuggestionOption[];
+}
+
+export interface TransferSuggestions {
+  exact: boolean; // real selling prices + bank (token) vs estimates
+  bank: number;
+  next_event: number | null;
+  next_price_update: string;
+  suggestions: TransferSuggestion[];
+}
+
+export function getTransferSuggestions(
+  entryId: number,
+  token?: string | null,
+): Promise<TransferSuggestions> {
+  return getLive(
+    `/api/manager/${entryId}/transfer-suggestions`,
+    token ? tokenHeader(token) : undefined,
+  );
+}
+
+// ---- fixture difficulty (official FPL API, live) ----------------------------
+
+export interface FdrFixture {
+  event: number;
+  opponent_id: number;
+  opponent_short: string;
+  opponent_code: number;
+  is_home: boolean;
+  difficulty: number; // 1 easiest – 5 hardest
+  kickoff_time: string | null;
+  finished: boolean;
+}
+
+export interface FdrTeam {
+  id: number;
+  code: number;
+  name: string;
+  short_name: string;
+  fixtures: FdrFixture[];
+}
+
+export interface FdrResponse {
+  events: {
+    id: number;
+    name: string;
+    deadline_time: string | null;
+    finished: boolean;
+  }[];
+  next_event: number | null;
+  teams: FdrTeam[];
+}
+
+export function getFdr(): Promise<FdrResponse> {
+  return getLive("/api/fdr");
+}
+
+// ---- head-to-head (football-data.co.uk, league meetings since 1993-94) ------
+
+export interface H2HSide {
+  id: number;
+  code: number;
+  name: string;
+  short_name: string;
+}
+
+export interface H2HMatch {
+  date: string; // ISO date
+  season: string; // "2025-26"
+  competition: string;
+  home: string;
+  away: string;
+  home_score: number;
+  away_score: number;
+  home_ht: number | null;
+  away_ht: number | null;
+  home_shots: number | null;
+  away_shots: number | null;
+  home_shots_on_target: number | null;
+  away_shots_on_target: number | null;
+  home_red: number | null;
+  away_red: number | null;
+  referee: string | null;
+  team_is_home: boolean; // from the clicked team's side
+  result: "W" | "D" | "L";
+}
+
+export interface HeadToHead {
+  team: H2HSide;
+  opponent: H2HSide;
+  matches: H2HMatch[];
+  summary: {
+    played: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    goals_for: number;
+    goals_against: number;
+  };
+  source: string;
+}
+
+export function getHeadToHead(
+  team: number,
+  opponent: number,
+  limit = 6,
+): Promise<HeadToHead> {
+  return getLive(`/api/h2h?team=${team}&opponent=${opponent}&limit=${limit}`);
 }
 
 // ---- player comparison (official FPL API + dataset snapshots) ----------------
