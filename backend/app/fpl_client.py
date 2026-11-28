@@ -32,6 +32,11 @@ def get_entry(entry_id: int) -> dict | None:
     return _cached_get(f"/entry/{entry_id}/", ttl=300)
 
 
+def get_entry_history(entry_id: int) -> dict | None:
+    """A manager's GW-by-GW season history (points, ranks, value) and chips."""
+    return _cached_get(f"/entry/{entry_id}/history/", ttl=300)
+
+
 def get_picks(entry_id: int, gw: int) -> dict | None:
     return _cached_get(f"/entry/{entry_id}/event/{gw}/picks/", ttl=60)
 

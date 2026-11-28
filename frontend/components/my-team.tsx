@@ -4,8 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useEntryId } from "./entry-id";
+import { LeagueCards } from "./league-cards";
 import { PlayerPhoto } from "./player-photo";
-import { RankMovement } from "./rank-movement";
 import { inputClass } from "./select";
 import {
   ApiRequestError,
@@ -189,7 +189,7 @@ function Connected({
     <>
       <TeamHeader profile={profile} team={team} onDisconnect={onDisconnect} />
       <SquadTable picks={team.picks} />
-      <LeagueCards leagues={profile.leagues} />
+      <MyLeagues leagues={profile.leagues} />
     </>
   );
 }
@@ -373,29 +373,12 @@ function PickRow({
 
 // ---- league cards ---------------------------------------------------------
 
-function LeagueCards({ leagues }: { leagues: ManagerLeague[] }) {
+function MyLeagues({ leagues }: { leagues: ManagerLeague[] }) {
   if (leagues.length === 0) return null;
   return (
     <section>
       <h2 className="font-display mb-2 text-lg font-semibold">Leagues</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {leagues.map((lg) => (
-          <Link
-            key={lg.id}
-            href={`/leagues/${lg.id}`}
-            className="border-border bg-surface hover:bg-background flex items-center justify-between gap-2 rounded-lg border p-4 transition-colors"
-          >
-            <span className="truncate text-sm font-medium">{lg.name}</span>
-            <span className="flex shrink-0 items-center gap-1.5 text-sm tabular-nums">
-              <RankMovement
-                rank={lg.entry_rank}
-                lastRank={lg.entry_last_rank}
-              />
-              <span className="font-semibold">{fmtRank(lg.entry_rank)}</span>
-            </span>
-          </Link>
-        ))}
-      </div>
+      <LeagueCards leagues={leagues} />
     </section>
   );
 }
