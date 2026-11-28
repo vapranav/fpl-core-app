@@ -74,7 +74,7 @@ function PlayerTile({
   return (
     <Link
       href={`/players/${pick.element}`}
-      className={`group relative flex max-w-16 min-w-0 flex-1 flex-col items-center sm:max-w-20 ${subbedOut ? "opacity-50" : ""}`}
+      className={`group relative flex max-w-16 min-w-0 flex-1 flex-col items-center sm:max-w-24 ${subbedOut ? "opacity-50" : ""}`}
       title={`${pick.web_name}${pick.team_name ? ` · ${pick.team_name}` : ""}${
         pick.minutes !== null ? ` · ${pick.minutes} min` : ""
       }${subbedIn ? " · auto-subbed in" : subbedOut ? " · auto-subbed out" : ""}`}
@@ -98,20 +98,20 @@ function PlayerTile({
           <Image
             src={shirtUrl(pick.team_code, goalkeeper)}
             alt=""
-            width={56}
-            height={74}
-            className="h-auto w-11 drop-shadow-md transition-transform group-hover:-translate-y-0.5 sm:w-14"
+            width={64}
+            height={84}
+            className="h-auto w-11 drop-shadow-md transition-transform group-hover:-translate-y-0.5 sm:w-16"
           />
         ) : (
-          <div className="h-14 w-11 rounded-md bg-white/30 sm:h-[74px] sm:w-14" />
+          <div className="h-14 w-11 rounded-md bg-white/30 sm:h-[84px] sm:w-16" />
         )}
       </div>
       <div className="mt-0.5 w-full overflow-hidden rounded-[3px] text-center shadow-md">
-        <div className="truncate bg-white px-1 py-0.5 text-[10px] font-semibold text-neutral-900 sm:text-xs">
+        <div className="truncate bg-white px-1 py-0.5 text-[10px] font-semibold text-neutral-900 sm:text-sm">
           {pick.web_name}
         </div>
         <div
-          className={`py-0.5 text-[10px] font-bold text-white tabular-nums sm:text-xs ${
+          className={`py-0.5 text-[10px] font-bold text-white tabular-nums sm:text-sm ${
             played || pts ? "bg-[#37003c]" : "bg-[#37003c]/70"
           }`}
         >
@@ -198,7 +198,7 @@ export function SquadPitch({ team }: { team: ManagerTeam }) {
             return (
               <div
                 key={row}
-                className="flex justify-center gap-1 sm:gap-6"
+                className="flex justify-evenly gap-1"
                 aria-label={`${row}s`}
               >
                 {players.map((p) => (
@@ -213,7 +213,7 @@ export function SquadPitch({ team }: { team: ManagerTeam }) {
             );
           })}
           {unknown.length > 0 && (
-            <div className="flex justify-center gap-1 sm:gap-6">
+            <div className="flex justify-evenly gap-1">
               {unknown.map((p) => (
                 <PlayerTile key={p.element} pick={p} />
               ))}
@@ -224,7 +224,7 @@ export function SquadPitch({ team }: { team: ManagerTeam }) {
 
       <div className="rounded-xl bg-[#d6f5e3] px-1 py-3 sm:px-4 dark:bg-[#123d26]">
         <p className="sr-only">Bench</p>
-        <div className="flex justify-center gap-2 sm:gap-8">
+        <div className="flex justify-evenly gap-2">
           {bench.map((p, i) => (
             <PlayerTile
               key={p.element}
